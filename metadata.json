@@ -1,0 +1,6 @@
+{
+  "name": "Monitor de Demanda de Usinas",
+  "description": "Acompanhamento de picos de demanda ativa (kW), data, hora e verificação de ultrapassagem de demanda contratada por usina.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
