@@ -17,6 +17,11 @@
  */
 
 import { Usina, UsinaDemandSummary, GlobalMetrics, TelemetryFilter, PeakRecord } from '../types';
+import {
+  getMockDemandPeaks,
+  getMockLivePlantTimeseries,
+  LivePlantTimeseriesResponse,
+} from '../data/mockData';
 
 export interface DelfosTimeseriesPoint {
   timestamp: string;
@@ -229,26 +234,15 @@ export async function executeSingleDailyCollection(
     console.warn('Aviso na requisição POST /timeseries:', err);
   }
 
-  // 2. Chamar o backend para processar e consolidar os picos de demanda
-  const res = await fetch('/api/telemetry/demand-peaks', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      apiToken,
-      usinaId: 'ALL', // Sempre coleta e consolida todas na requisição única para evitar loops!
-      startTime: filter.startTime,
-      endTime: filter.endTime,
-      aggregation: filter.aggregation,
-      variable_ids: ['Potência ativa'],
-      timeseriesPoints: rawTimeseriesPoints.length > 0 ? rawTimeseriesPoints : undefined,
-    }),
+  // 2. Processar e consolidar os picos de demanda localmente (100% client-side estático para Vercel)
+  const data = getMockDemandPeaks({
+    apiToken,
+    usinaId: 'ALL',
+    startTime: filter.startTime,
+    endTime: filter.endTime,
+    aggregation: filter.aggregation,
+    timeseriesPoints: rawTimeseriesPoints.length > 0 ? rawTimeseriesPoints : undefined,
   });
-
-  const data = await res.json();
-
-  if (!data || !data.success) {
-    throw new Error(data?.error || 'Falha ao processar telemetria na API');
-  }
 
   const summaries: UsinaDemandSummary[] = data.summaries || [];
   const metrics: GlobalMetrics = data.globalMetrics;
@@ -271,4 +265,15 @@ export async function executeSingleDailyCollection(
     globalMetrics: metrics,
     collectionTimestamp,
   };
+}
+
+/**
+ * Consulta a telemetria diária (288 leituras) de qualquer usina diretamente dos dados locais client-side
+ */
+export async function fetchLivePlantTimeseries(params: {
+  usinaName?: string;
+  date?: string;
+  aggregate?: string;
+}): Promise<LivePlantTimeseriesResponse> {
+  return getMockLivePlantTimeseries(params);
 }

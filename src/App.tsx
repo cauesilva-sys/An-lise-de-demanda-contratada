@@ -14,6 +14,7 @@ import { EditContractModal } from './components/EditContractModal';
 import { ApiConfigModal } from './components/ApiConfigModal';
 import { exportDemandSummariesToCsv } from './utils/exportCsv';
 import { executeSingleDailyCollection } from './services/delfosApi';
+import { getMockUsinas, updateMockContractedDemand } from './data/mockData';
 import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw } from 'lucide-react';
 
 export default function App() {
@@ -92,14 +93,11 @@ export default function App() {
     []
   );
 
-  // Fetch usinas list
+  // Fetch usinas list (100% estático client-side)
   const fetchUsinas = useCallback(async () => {
     try {
-      const res = await fetch('/api/usinas');
-      const data = await res.json();
-      if (data.success) {
-        setUsinas(data.data || []);
-      }
+      const data = getMockUsinas();
+      setUsinas(data);
     } catch (err) {
       console.error('Failed to fetch usinas list:', err);
     }
@@ -200,22 +198,17 @@ export default function App() {
 
   const handleSaveContractedDemand = async (usinaId: string, newValKw: number) => {
     try {
-      const res = await fetch(`/api/usinas/${usinaId}/contracted-demand`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contractedDemandKw: newValKw }),
-      });
-      const data = await res.json();
+      const data = updateMockContractedDemand(usinaId, newValKw);
       if (data.success) {
         showToast(data.message);
         await fetchUsinas();
         await fetchTelemetry(filter, apiToken);
       } else {
-        alert(data.error || 'Erro ao atualizar contrato');
+        alert(data.message || 'Erro ao atualizar contrato');
       }
     } catch (err) {
       console.error('Error updating contracted demand:', err);
-      alert('Erro de conexão ao salvar demanda.');
+      alert('Erro ao salvar demanda.');
     }
   };
 
