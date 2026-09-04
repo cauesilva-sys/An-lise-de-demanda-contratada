@@ -130,7 +130,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
   }, [summary.contractedDemandKw, maxKwInSeries]);
 
   const filtered7MinPoints = useMemo(() => {
-    const limitKw = summary.toleranceKw || summary.contractedDemandKw * 1.013;
+    const limitKw = summary.toleranceKw || summary.contractedDemandKw * 1.03;
     if (tableFilter === 'EXCEEDED') {
       return timeSeries7Min.filter((p) => p.activePowerKw > limitKw);
     }
@@ -224,7 +224,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
           </div>
         </div>
 
-        {/* Box 3: Contracted Demand & Tolerance (+1.3%) */}
+        {/* Box 3: Contracted Demand & Tolerance (+3% / 103%) */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
@@ -239,7 +239,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
             </div>
 
             <div className="mt-1 text-[11px] font-bold text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-100 inline-block">
-              Limite +1,3%: {summary.toleranceKw ? summary.toleranceKw.toLocaleString('pt-BR') : Math.round(summary.contractedDemandKw * 1.013).toLocaleString('pt-BR')} kW
+              Limite +3% (103%): {summary.toleranceKw ? summary.toleranceKw.toLocaleString('pt-BR') : Math.round(summary.contractedDemandKw * 1.03).toLocaleString('pt-BR')} kW
             </div>
 
             <div className="mt-2">
@@ -300,14 +300,14 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
 
             <p className="text-xs mt-1 text-slate-700 leading-relaxed font-medium">
               {summary.statusReason || (isExceeded
-                ? `O pico de ${summary.maxPeakKw.toLocaleString('pt-BR')} kW excedeu o limite de 1,3% da contratada por ${summary.sustainedDurationMinutes} min contínuos.`
-                : `Operação regular respeitando limite de 1,3% de tolerância e 5 min de persistência.`)}
+                ? `O pico de ${summary.maxPeakKw.toLocaleString('pt-BR')} kW excedeu o limite de 103% da contratada por ${summary.sustainedDurationMinutes} min contínuos.`
+                : `Operação regular respeitando limite de 103% (+3%) de tolerância e 5 min de persistência.`)}
             </p>
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-300/60 text-[11px] font-semibold flex items-center justify-between">
             <span>Regra de Tolerância:</span>
-            <span className="font-mono text-xs font-bold text-slate-900">&gt;1,3% por &gt;= 5 min</span>
+            <span className="font-mono text-xs font-bold text-slate-900">&gt;103% por &gt;= 5 min</span>
           </div>
         </div>
       </div>
@@ -506,7 +506,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                       Ponto 13:35:00: <strong>994,70 kW</strong>
                     </span>
                     <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
-                      Pico 14:10:00 → <strong>1.001,87 kW</strong> (Dentro da tolerância de +1,3% / 1.013 kW)
+                      Pico 14:10:00 → <strong>1.001,87 kW</strong> (Dentro da tolerância de até 103% / 1.030 kW)
                     </span>
                     <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                       API Oficial Delfos (144 leituras)

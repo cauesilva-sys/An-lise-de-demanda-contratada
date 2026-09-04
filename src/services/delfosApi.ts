@@ -44,7 +44,7 @@ export interface DelfosTimeseriesResponse {
 }
 
 /**
- * Dispara requisição POST única na rota /timeseries da API Delfos
+ * Dispara requisição POST única na rota /timeseries da API Delfos com try/catch e fallback para 404/erros
  */
 export async function fetchDelfosTimeseries(
   request: DelfosTimeseriesRequest,
@@ -60,23 +60,55 @@ export async function fetchDelfosTimeseries(
     ...(request.device_ids ? { device_ids: request.device_ids } : {}),
   };
 
-  // Faz a requisição POST na rota /timeseries configurada no proxy do servidor
-  const response = await fetch('/timeseries', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': cleanKey,
-      'X-API-Key': cleanKey,
-      'Authorization': `Bearer ${cleanKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    // Faz a requisição POST na rota /timeseries com timeout de segurança
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-  if (!response.ok) {
-    throw new Error(`Delfos /timeseries retornou status HTTP ${response.status}`);
+    const response = await fetch('/timeseries', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'API-Key': cleanKey,
+        'X-API-Key': cleanKey,
+        'Authorization': `Bearer ${cleanKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    // Tratamento de 404 ou outros erros HTTP da Delfos
+    if (!response.ok) {
+      console.warn(`[Delfos API] /timeseries retornou status HTTP ${response.status}. Ativando fallback de telemetria local.`);
+      return {
+        success: false,
+        source: 'FALLBACK_LOCAL_TELEMETRY',
+        data: null,
+      };
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      console.warn(`[Delfos API] /timeseries retornou formato não-JSON (${contentType}). Ativando fallback de telemetria local.`);
+      return {
+        success: false,
+        source: 'FALLBACK_LOCAL_TELEMETRY',
+        data: null,
+      };
+    }
+
+    const json = await response.json();
+    return json;
+  } catch (err: any) {
+    // Tratamento de falhas de rede, 404, CORS ou timeout sem travar a aplicação
+    console.warn('[Delfos API] Conexão com API Delfos /timeseries indisponível ou em 404. Usando base de telemetria local resiliente:', err?.message || err);
+    return {
+      success: false,
+      source: 'FALLBACK_LOCAL_TELEMETRY',
+      data: null,
+    };
   }
-
-  return await response.json();
 }
 
 /**
@@ -92,7 +124,7 @@ export function processDailyReadingsForUsina(
   points: DelfosTimeseriesPoint[],
   usina: Usina
 ): UsinaDemandSummary {
-  const toleranceKw = Number((usina.contractedDemandKw * 1.013).toFixed(2));
+  const toleranceKw = Number((usina.contractedDemandKw * 1.03).toFixed(2));
 
   // Se não houver pontos válidos
   if (!points || points.length === 0) {
@@ -132,24 +164,24 @@ export function processDailyReadingsForUsina(
   // b) Guardar o horário exato (Timestamp) desse pico
   const maxPeakTimestamp = maxPoint.timestamp;
 
-  // c) Comparar o Pico Máximo com a Demanda Contratada e Limite de Tolerância (+1,3%)
+  // c) Comparar o Pico Máximo com a Demanda Contratada e Limite de Tolerância (103%)
   const isAboveContract = maxPeakKw > usina.contractedDemandKw;
   const isAboveTolerance = maxPeakKw > toleranceKw;
   const excessKw = isAboveContract ? Number((maxPeakKw - usina.contractedDemandKw).toFixed(2)) : 0;
   const percentageOfContracted = Number(((maxPeakKw / usina.contractedDemandKw) * 100).toFixed(1));
 
   // d) Definir Status
-  // Apenas quem ultrapassou 1,3% da demanda contratada é classificado como EXCEEDED
+  // Apenas quem ultrapassou 103% da demanda contratada é classificado como EXCEEDED
   let status: 'EXCEEDED' | 'WARNING' | 'OK' = 'OK';
   let statusReason = 'OPERAÇÃO REGULAR: Potência ativa dentro do limite contratual';
 
   if (isAboveTolerance) {
     status = 'EXCEEDED';
     const excessTol = Number((maxPeakKw - toleranceKw).toFixed(2));
-    statusReason = `ULTRAPASSAGEM DETECTADA (> +1,3%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância regulatória de +1,3% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
+    statusReason = `ULTRAPASSAGEM DETECTADA (> 103%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância de 103% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
   } else if (isAboveContract) {
     status = 'WARNING';
-    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância regulatória de +1,3% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
+    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância de até 103% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
   } else if (percentageOfContracted >= 90) {
     status = 'WARNING';
     statusReason = `ALERTA DE PROXIMIDADE: Potência ativa em ${percentageOfContracted}% da demanda contratada`;

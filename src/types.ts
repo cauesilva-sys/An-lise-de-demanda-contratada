@@ -19,7 +19,7 @@ export interface PeakRecord {
   timestamp: string; // e.g. "2026-07-05 13:00:00"
   powerKw: number;
   contractedDemandKw: number;
-  toleranceKw: number; // Demanda contratada com tolerância de +1,3%
+  toleranceKw: number; // Demanda contratada com tolerância de 103% (+3%)
   exceeded: boolean; // True ONLY if powerKw > toleranceKw AND durationMinutes >= 5
   excessKw: number;
   percentageOfContracted: number;
@@ -32,13 +32,13 @@ export interface UsinaDemandSummary {
   usinaName: string;
   deviceType: string;
   contractedDemandKw: number;
-  toleranceKw: number; // Demanda com +1.3% de tolerância
+  toleranceKw: number; // Demanda com tolerância de 103% (+3%)
   capacityKwp?: number;
   maxPeakKw: number;
   maxPeakTimestamp: string; // "2026-07-05 13:00:00"
   avgPowerKw: number;
   status: DemandStatus;
-  statusReason: string; // Explicação detalhada da regra de 1.3% e 5 min
+  statusReason: string; // Explicação detalhada da regra de 103% e 5 min
   excessKw: number;
   percentageOfContracted: number;
   sustainedDurationMinutes: number;
@@ -50,7 +50,8 @@ export interface TelemetryFilter {
   usinaId: string; // 'ALL' or specific usinaId
   startTime: string; // YYYY-MM-DD HH:mm:ss
   endTime: string; // YYYY-MM-DD HH:mm:ss
-  timeShortcut: string; // '7d' | '30d' | 'this_month' | 'last_month' | 'custom'
+  timeShortcut: string; // 'month' | 'today' | '7d' | '30d' | 'this_month' | 'last_month' | 'custom'
+  selectedMonth?: string; // e.g. '08/2026', '09/2026'
   aggregation: string; // '1 min' | '5 min' | '15 min' | '1 hour'
   variable: string; // 'Active Power'
   apiToken: string;

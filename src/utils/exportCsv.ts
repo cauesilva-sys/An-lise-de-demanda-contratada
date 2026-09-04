@@ -4,61 +4,92 @@ export function exportDemandSummariesToCsv(
   summaries: UsinaDemandSummary[],
   startTime: string,
   endTime: string,
-  apiToken: string
+  apiToken?: string
 ) {
+  // Cabeçalhos limpos na Linha 1 para compatibilidade nativa com Excel, Sheets e PowerBI
   const headers = [
-    'Usina',
-    'Tipo de Dispositivo',
+    'Nome da Usina',
     'Demanda Contratada (kW)',
-    'Pico Maximo Registrado (kW)',
-    'Data Exata do Pico',
-    'Hora Exata do Pico',
+    'Maior Potência do Período (kW)',
+    'Data do Pico',
+    'Hora do Pico',
+    'Data e Hora Completa do Pico',
+    'Percentual da Demanda (%)',
     'Excedente (kW)',
-    'Uso do Contrato (%)',
-    'Status de Infracao',
+    'Status Operacional',
   ];
 
   const rows = summaries.map((s) => {
-    const [datePart, timePart] = s.maxPeakTimestamp ? s.maxPeakTimestamp.split(' ') : ['', ''];
-    const formattedDate = datePart ? datePart.split('-').reverse().join('/') : '--/--/----';
+    const rawTs = s.maxPeakTimestamp || '';
+    const [datePart, timePart] = rawTs.split(' ');
+
+    // Formata data brasileira DD/MM/AAAA
+    let formattedDate = '--/--/----';
+    if (datePart) {
+      const parts = datePart.split('-');
+      if (parts.length === 3) {
+        formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      } else {
+        formattedDate = datePart;
+      }
+    }
+
     const formattedTime = timePart || '00:00:00';
+    const fullDateTime = `${formattedDate} ${formattedTime}`.trim();
+
+    // Status operacional amigável
+    let statusLabel = 'Dentro do Contrato (OK)';
+    if (s.status === 'EXCEEDED') {
+      statusLabel = 'Ultrapassou Demanda (>103%)';
+    } else if (s.status === 'WARNING') {
+      statusLabel = s.percentageOfContracted > 100
+        ? 'Alerta de Tolerância (<=103%)'
+        : 'Atenção (>90%)';
+    }
+
+    // Formatação numérica brasileira (vírgula decimal sem separador de milhar)
+    // Permite que o Excel reconheça automaticamente como valor numérico para cálculos e gráficos
+    const contractedStr = s.contractedDemandKw.toFixed(2).replace('.', ',');
+    const peakStr = s.maxPeakKw.toFixed(2).replace('.', ',');
+    const pctStr = `${s.percentageOfContracted.toFixed(1).replace('.', ',')}%`;
+    const excessStr = s.excessKw > 0 ? s.excessKw.toFixed(2).replace('.', ',') : '0,00';
 
     return [
-      `"${s.usinaName}"`,
-      `"${s.deviceType}"`,
-      s.contractedDemandKw,
-      s.maxPeakKw.toFixed(2),
+      `"${s.usinaName.replace(/"/g, '""')}"`,
+      contractedStr,
+      peakStr,
       `"${formattedDate}"`,
       `"${formattedTime}"`,
-      s.excessKw.toFixed(2),
-      `${s.percentageOfContracted.toFixed(1)}%`,
-      `"${s.status === 'EXCEEDED' ? 'ULTRAPASSOU DEMANDA' : s.status === 'WARNING' ? 'ATENÇÃO (>90%)' : 'DENTRO DO CONTRATO'}"`,
+      `"${fullDateTime}"`,
+      `"${pctStr}"`,
+      excessStr,
+      `"${statusLabel}"`,
     ];
   });
 
-  const metaHeader = [
-    `# Relatório de Auditoria de Demanda de Usinas Solares`,
-    `# Período Analisado: ${startTime} até ${endTime}`,
-    `# Chave Token API: ${apiToken}`,
-    `# Data de Geracao: ${new Date().toLocaleString('pt-BR')}`,
-    '',
-  ];
-
+  // Linha 1 = Cabeçalhos (padrão CSV com separador ponto e vírgula para Excel em português)
   const csvContent =
-    'data:text/csv;charset=utf-8,\uFEFF' +
-    metaHeader.join('\n') +
+    '\uFEFF' + // BOM UTF-8 para o Excel abrir com acentuação correta
     headers.join(';') +
-    '\n' +
-    rows.map((e) => e.join(';')).join('\n');
+    '\r\n' +
+    rows.map((row) => row.join(';')).join('\r\n');
 
-  const encodedUri = encodeURI(csvContent);
+  // Usa Blob + URL.createObjectURL para suportar qualquer volume de dados com segurança
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const startClean = startTime.substring(0, 10).replace(/[^0-9-]/g, '');
+  const endClean = endTime.substring(0, 10).replace(/[^0-9-]/g, '');
+  const filename = startClean === endClean
+    ? `demanda_usinas_${startClean}.csv`
+    : `demanda_usinas_${startClean}_a_${endClean}.csv`;
+
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute(
-    'download',
-    `relatorio_demanda_usinas_${startTime.substring(0, 10)}_a_${endTime.substring(0, 10)}.csv`
-  );
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

@@ -103,7 +103,7 @@ export interface DemandPeaksResponse {
 /**
  * Substitui a rota backend `/api/telemetry/demand-peaks`.
  * Executa a consolidação de picos das 125 usinas diretamente no client-side,
- * aplicando a regra regulatória de ultrapassagem estrita (> 1,3% da demanda).
+ * aplicando a regra estrita de ultrapassagem (> 103% da demanda contratada).
  */
 export function getMockDemandPeaks(params: {
   apiToken?: string;
@@ -150,7 +150,7 @@ export function getMockDemandPeaks(params: {
     return generateUsinaTelemetrySummary(u, startTime, endTime);
   });
 
-  // Contagem estrita com base no limite regulatório de +1,3%
+  // Contagem estrita com base no limite de tolerância de 103%
   const exceededCount = allSummaries.filter((s) => s.status === 'EXCEEDED').length;
   const warningCount = allSummaries.filter((s) => s.status === 'WARNING').length;
 
@@ -245,7 +245,7 @@ export function getMockLivePlantTimeseries(params: {
   );
 
   const contractedDemandKw = localUsina ? localUsina.contractedDemandKw : 1000;
-  const toleranceKw = Number((contractedDemandKw * 1.013).toFixed(2));
+  const toleranceKw = Number((contractedDemandKw * 1.03).toFixed(2));
   const delfosId = findDelfosDeviceIdByName(usinaName);
 
   // Gera os 288 pontos diários com base na telemetria oficial Delfos

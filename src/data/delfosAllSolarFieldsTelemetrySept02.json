@@ -12430,7 +12430,7 @@
     "deviceId": 24193,
     "deviceName": "Caracará A II",
     "maxPeakKw": 999.94,
-    "maxPeakTimestamp": "2026-09-02 09:35:00",
+    "maxPeakTimestamp": "2026-09-02 09:55:00",
     "samplePointsCount": 149,
     "series": {
       "05:30:00": 0.45,

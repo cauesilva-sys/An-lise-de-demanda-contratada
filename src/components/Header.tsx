@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, ShieldAlert, Key, RefreshCw, FileSpreadsheet, Sliders, Clock } from 'lucide-react';
+import { Zap, ShieldAlert, Key, RefreshCw, FileSpreadsheet, Sliders, Clock, MessageSquare } from 'lucide-react';
 
 interface HeaderProps {
   apiToken: string;
@@ -9,6 +9,7 @@ interface HeaderProps {
   isLoading: boolean;
   exceededCount: number;
   lastCollectionTime?: string | null;
+  onOpenWhatsApp?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   isLoading,
   exceededCount,
   lastCollectionTime,
+  onOpenWhatsApp,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 text-slate-800 px-4 lg:px-8 py-4 shadow-sm">
@@ -57,6 +59,18 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
+          {/* WhatsApp Share Button */}
+          {onOpenWhatsApp && (
+            <button
+              onClick={onOpenWhatsApp}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-900 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-[0.98]"
+              title="Copiar e compartilhar resumo no WhatsApp"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
+            </button>
+          )}
+
           {/* Refresh / Coletar Button */}
           <button
             onClick={onRefresh}
@@ -74,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-xs transition-colors shadow-sm"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Exportar CSV / Relatório</span>
+            <span>Exportar CSV</span>
           </button>
         </div>
       </div>

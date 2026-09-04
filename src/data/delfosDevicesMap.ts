@@ -519,10 +519,17 @@ export function findDelfosDeviceIdByName(name: string): number | null {
 
   const n = norm(name);
 
-  // 1. Specific aliases & Roman numeral disambiguation
-  if (/\buruguaiana\s*(1|i)\b/i.test(n) && !/\buruguaiana\s*(ii|iii|iv)\b/i.test(n)) return 20001;
-  if (/\buruguaiana\s*(2|ii)\b/i.test(n)) return 2257;
-  if (/\buruguaiana\s*(4|iv)\b/i.test(n)) return 2256;
+  // 1. Specific aliases & Roman numeral disambiguation (descending order to avoid Roman numeral prefix collisions)
+  if (/\buruguaiana\s*(4|iv)\b/i.test(n) || (n.includes('uruguaiana') && (n.includes(' 4') || n.endsWith('4')))) return 2256;
+  if (/\buruguaiana\s*(2|ii)\b/i.test(n) || (n.includes('uruguaiana') && (n.includes(' 2') || n.endsWith('2')))) return 2257;
+  if (/\buruguaiana\s*(1|i)\b/i.test(n) || n === 'uruguaiana' || (n.includes('uruguaiana') && !n.includes('ii') && !n.includes('iv') && !n.includes('2') && !n.includes('4'))) return 20001;
+
+  // Pirangi disambiguation (Pirangi I = 9345, Pirangi II = 9346, Pirangi III = 9343, Pirangi IV = 9344)
+  if (/\bpirangi\s*(4|iv)\b/i.test(n) || n.includes('pirangi iii ufv 4') || (n.includes('pirangi') && n.includes('ufv 4'))) return 9344;
+  if (/\bpirangi\s*(3|iii)\b/i.test(n) || (n.includes('pirangi') && n.includes('ufv 3'))) return 9343;
+  if (/\bpirangi\s*(2|ii)\b/i.test(n) || (n.includes('pirangi') && n.includes('ufv 2')) || n.includes('pirangi ii')) return 9346;
+  if (/\bpirangi\s*(1|i)\b/i.test(n) || (n.includes('pirangi') && n.includes('ufv 1')) || n.includes('pirangi i')) return 9345;
+
   if (n.includes('presidente alves')) return 1394;
   if (n.includes('taubate')) return 1041;
   if (n.includes('canas')) return 1393;
@@ -542,11 +549,19 @@ export function findDelfosDeviceIdByName(name: string): number | null {
     if (n.includes('2') || n.includes('02')) return 24910;
   }
 
-  // Caracará
+  // Caracará (Delfos: Caracará A I = 24192, Caracará A II = 24193, Caracará A III = 24194)
   if (n.includes('caracara')) {
-    if (n.includes('1') || n.includes(' i') || n.endsWith('1')) return 24192;
-    if (n.includes('2') || n.includes(' ii') || n.endsWith('2')) return 24193;
-    if (n.includes('3') || n.includes(' iii') || n.endsWith('3')) return 24194;
+    if (/\b(3|iii|03)\b/i.test(n) || n.endsWith('3') || n.includes('a iii')) return 24194;
+    if (/\b(2|ii|02)\b/i.test(n) || n.endsWith('2') || n.includes('a ii')) return 24193;
+    if (/\b(1|i|01)\b/i.test(n) || n.endsWith('1') || n.includes('a i')) return 24192;
+  }
+
+  // Niquelândia (Delfos: UFV01 = 24911, UFV02 = 24912, UFV03 = 24890, UFV04 = 24891)
+  if (n.includes('niquelandia')) {
+    if (/\b(4|04|iv)\b/i.test(n) || n.endsWith('4') || n.includes('ufv 04') || n.includes('ufv 4') || n.includes('niquelandia ii')) return 24891;
+    if (/\b(3|03|iii)\b/i.test(n) || n.endsWith('3') || n.includes('ufv 03') || n.includes('ufv 3')) return 24890;
+    if (/\b(2|02|ii)\b/i.test(n) || n.endsWith('2') || n.includes('ufv 02') || n.includes('ufv 2')) return 24912;
+    if (/\b(1|01|i)\b/i.test(n) || n.endsWith('1') || n.includes('ufv 01') || n.includes('ufv 1')) return 24911;
   }
 
   // Luis Eduardo Magalhães

@@ -12,6 +12,7 @@ import { SelectedUsinaDetailCard } from './components/SelectedUsinaDetailCard';
 import { UsinasTable } from './components/UsinasTable';
 import { EditContractModal } from './components/EditContractModal';
 import { ApiConfigModal } from './components/ApiConfigModal';
+import { WhatsAppShareModal } from './components/WhatsAppShareModal';
 import { exportDemandSummariesToCsv } from './utils/exportCsv';
 import { executeSingleDailyCollection } from './services/delfosApi';
 import { getMockUsinas, updateMockContractedDemand } from './data/mockData';
@@ -50,6 +51,7 @@ export default function App() {
 
   // Modal states
   const [isApiModalOpen, setIsApiModalOpen] = useState<boolean>(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState<boolean>(false);
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
     usinaId: string | null;
@@ -115,9 +117,11 @@ export default function App() {
   };
 
   // Disparo manual explícito do usuário
-  const handleApplyFilters = () => {
-    fetchTelemetry(filter, apiToken);
-    showToast('Coleta única diária disparada para o período selecionado!');
+  const handleApplyFilters = (customFilter?: TelemetryFilter) => {
+    const activeF = customFilter || filter;
+    fetchTelemetry(activeF, apiToken);
+    const periodLabel = activeF.selectedMonth ? `mês ${activeF.selectedMonth}` : 'período selecionado';
+    showToast(`Coleta de demanda processada com sucesso para ${periodLabel}!`);
   };
 
   const handleResetFilters = () => {
@@ -145,11 +149,11 @@ export default function App() {
     } else if (category === 'EXCEEDED') {
       setStatusCategory('EXCEEDED');
       setFilter((prev) => ({ ...prev, usinaId: 'ALL' }));
-      showToast('Filtrando usinas com ultrapassagem > 1,3% da demanda contratada.');
+      showToast('Filtrando usinas com ultrapassagem > 103% da demanda contratada.');
     } else if (category === 'WARNING') {
       setStatusCategory('WARNING');
       setFilter((prev) => ({ ...prev, usinaId: 'ALL' }));
-      showToast('Filtrando usinas em alerta (≥90% ou resguardadas na tolerância de até +1,3%).');
+      showToast('Filtrando usinas em alerta (≥90% ou resguardadas na tolerância de até 103%).');
     } else if (category === 'HIGHEST_PEAK') {
       setStatusCategory('ALL');
       if (globalMetrics.highestPeakOverall) {
@@ -234,6 +238,11 @@ export default function App() {
     if (filter.usinaId !== 'ALL') {
       return summaries.find((s) => s.usinaId === filter.usinaId) || globalMetrics.selectedUsinaSummary;
     }
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase().trim();
+      const matched = summaries.find((s) => s.usinaName.toLowerCase().includes(q));
+      if (matched) return matched;
+    }
     if (statusCategory === 'EXCEEDED') {
       return summaries.find((s) => s.status === 'EXCEEDED') || globalMetrics.selectedUsinaSummary;
     }
@@ -241,7 +250,7 @@ export default function App() {
       return summaries.find((s) => s.status === 'WARNING') || globalMetrics.selectedUsinaSummary;
     }
     return globalMetrics.selectedUsinaSummary;
-  }, [summaries, filter.usinaId, statusCategory, globalMetrics.selectedUsinaSummary]);
+  }, [summaries, filter.usinaId, searchQuery, statusCategory, globalMetrics.selectedUsinaSummary]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-700 font-sans selection:bg-blue-600 selection:text-white pb-16">
@@ -262,6 +271,7 @@ export default function App() {
         isLoading={isLoading}
         exceededCount={globalMetrics.usinasExceededCount}
         lastCollectionTime={lastCollectionTime}
+        onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
       />
 
       {/* App Body */}
@@ -299,13 +309,17 @@ export default function App() {
         {/* Filters Controls */}
         <FiltersBar
           usinas={usinas}
+          summaries={summaries}
           filter={filter}
           onFilterChange={handleFilterChange}
           onApplyFilters={handleApplyFilters}
           onResetFilters={handleResetFilters}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onSelectUsina={handleSelectUsina}
           isLoading={isLoading}
+          lastCollectionTime={lastCollectionTime}
+          onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
         />
 
         {/* Selected Usina Focal Detail Card */}
@@ -325,6 +339,8 @@ export default function App() {
           searchQuery={searchQuery}
           statusCategory={statusCategory}
           onSelectCategory={handleSelectCategory}
+          onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
+          onExportCsv={handleExportCsv}
         />
       </main>
 
@@ -343,6 +359,16 @@ export default function App() {
         apiToken={apiToken}
         onClose={() => setIsApiModalOpen(false)}
         onSaveToken={handleSaveToken}
+      />
+
+      <WhatsAppShareModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        summaries={summaries}
+        periodLabel={filter.selectedMonth ? `Mês de Referência ${filter.selectedMonth}` : 'Coleta Única Diária'}
+        startTime={filter.startTime}
+        endTime={filter.endTime}
+        lastCollectionTime={lastCollectionTime}
       />
     </div>
   );
