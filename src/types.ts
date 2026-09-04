@@ -19,8 +19,8 @@ export interface PeakRecord {
   timestamp: string; // e.g. "2026-07-05 13:00:00"
   powerKw: number;
   contractedDemandKw: number;
-  toleranceKw: number; // Demanda contratada com tolerância de 103% (+3%)
-  exceeded: boolean; // True ONLY if powerKw > toleranceKw AND durationMinutes >= 5
+  toleranceKw: number; // Demanda contratada com tolerância de 104% (+4%)
+  exceeded: boolean; // True ONLY if powerKw >= toleranceKw AND durationMinutes >= 5
   excessKw: number;
   percentageOfContracted: number;
   durationMinutes: number; // Duração contínua em minutos
@@ -32,13 +32,13 @@ export interface UsinaDemandSummary {
   usinaName: string;
   deviceType: string;
   contractedDemandKw: number;
-  toleranceKw: number; // Demanda com tolerância de 103% (+3%)
+  toleranceKw: number; // Demanda com tolerância de 104% (+4%)
   capacityKwp?: number;
   maxPeakKw: number;
   maxPeakTimestamp: string; // "2026-07-05 13:00:00"
   avgPowerKw: number;
   status: DemandStatus;
-  statusReason: string; // Explicação detalhada da regra de 103% e 5 min
+  statusReason: string; // Explicação detalhada da regra de 104% e 5 min
   excessKw: number;
   percentageOfContracted: number;
   sustainedDurationMinutes: number;

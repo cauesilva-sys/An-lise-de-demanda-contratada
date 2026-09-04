@@ -80,7 +80,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
             }`}
           >
             <AlertOctagon className="w-3.5 h-3.5" />
-            Ultrapassou &gt; 103% ({summaries.filter((s) => s.status === 'EXCEEDED').length})
+            Ultrapassou &gt; 104% ({summaries.filter((s) => s.status === 'EXCEEDED').length})
           </button>
           <button
             onClick={() => onSelectCategory && onSelectCategory('WARNING')}
@@ -237,9 +237,9 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {s.status === 'EXCEEDED' ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200 shadow-xs" title={s.statusReason || 'Ultrapassagem acima de 103% da demanda contratada'}>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200 shadow-xs" title={s.statusReason || 'Ultrapassagem acima de 104% da demanda contratada'}>
                             <AlertOctagon className="w-3.5 h-3.5 text-red-600" />
-                            ULTRAPASSOU &gt; 103% (+{s.excessKw.toLocaleString('pt-BR')} kW)
+                            ULTRAPASSOU &gt; 104% (+{s.excessKw.toLocaleString('pt-BR')} kW)
                           </span>
                           <span className="text-[10px] text-red-600 font-medium pl-1">
                             Pico {s.maxPeakKw.toLocaleString('pt-BR')} kW &gt; Limite {s.toleranceKw.toLocaleString('pt-BR')} kW
@@ -247,13 +247,13 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                         </div>
                       ) : s.status === 'WARNING' ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200" title={s.statusReason || 'Faixa de alerta (>=90%) ou na tolerância de até 103%'}>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200" title={s.statusReason || 'Faixa de alerta (>=90%) ou na tolerância de até 104%'}>
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                            {s.maxPeakKw > s.contractedDemandKw ? 'TOLERÂNCIA ≤ 103%' : 'ALERTA ≥ 90%'}
+                            {s.maxPeakKw > s.contractedDemandKw ? 'TOLERÂNCIA ≤ 104%' : 'ALERTA ≥ 90%'}
                           </span>
                           {s.maxPeakKw > s.contractedDemandKw ? (
                             <span className="text-[10px] text-amber-700 font-semibold pl-1">
-                              Pico {s.maxPeakKw.toLocaleString('pt-BR')} kW (resguardado até 103%)
+                              Pico {s.maxPeakKw.toLocaleString('pt-BR')} kW (resguardado até 104%)
                             </span>
                           ) : (
                             <span className="text-[10px] text-amber-700 font-medium pl-1">
@@ -262,7 +262,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200" title="Dentro da demanda contratada e tolerância de até 103%">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200" title="Dentro da demanda contratada e tolerância regulatória de até 104%">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           OPERAÇÃO REGULAR
                         </span>

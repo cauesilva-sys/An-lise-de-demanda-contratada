@@ -25,9 +25,24 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Uncaught error in component tree:', error, errorInfo);
+    if (
+      error &&
+      (error.message?.includes('Expected static flag was missing') ||
+        error.stack?.includes('Expected static flag was missing'))
+    ) {
+      console.warn('[ErrorBoundary] Limpando estado de renderização devido à anomalia de reconciliação...');
+      try {
+        sessionStorage.clear();
+        localStorage.removeItem('delfos_cached_state');
+      } catch (_) {}
+    }
   }
 
   private handleReload = () => {
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem('delfos_cached_state');
+    } catch (_) {}
     this.setState({ hasError: false, error: null });
     window.location.reload();
   };

@@ -149,11 +149,11 @@ export default function App() {
     } else if (category === 'EXCEEDED') {
       setStatusCategory('EXCEEDED');
       setFilter((prev) => ({ ...prev, usinaId: 'ALL' }));
-      showToast('Filtrando usinas com ultrapassagem > 103% da demanda contratada.');
+      showToast('Filtrando usinas com ultrapassagem > 104% da demanda contratada.');
     } else if (category === 'WARNING') {
       setStatusCategory('WARNING');
       setFilter((prev) => ({ ...prev, usinaId: 'ALL' }));
-      showToast('Filtrando usinas em alerta (≥90% ou resguardadas na tolerância de até 103%).');
+      showToast('Filtrando usinas em alerta (≥90% ou resguardadas na tolerância de até 104%).');
     } else if (category === 'HIGHEST_PEAK') {
       setStatusCategory('ALL');
       if (globalMetrics.highestPeakOverall) {

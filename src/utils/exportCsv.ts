@@ -40,10 +40,10 @@ export function exportDemandSummariesToCsv(
     // Status operacional amigável
     let statusLabel = 'Dentro do Contrato (OK)';
     if (s.status === 'EXCEEDED') {
-      statusLabel = 'Ultrapassou Demanda (>103%)';
+      statusLabel = 'Ultrapassou Demanda (> 104%)';
     } else if (s.status === 'WARNING') {
       statusLabel = s.percentageOfContracted > 100
-        ? 'Alerta de Tolerância (<=103%)'
+        ? 'Alerta de Tolerância (<= 104%)'
         : 'Atenção (>90%)';
     }
 

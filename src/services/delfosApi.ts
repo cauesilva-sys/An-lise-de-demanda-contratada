@@ -124,7 +124,7 @@ export function processDailyReadingsForUsina(
   points: DelfosTimeseriesPoint[],
   usina: Usina
 ): UsinaDemandSummary {
-  const toleranceKw = Number((usina.contractedDemandKw * 1.03).toFixed(2));
+  const toleranceKw = Number((usina.contractedDemandKw * 1.04).toFixed(2));
 
   // Se não houver pontos válidos
   if (!points || points.length === 0) {
@@ -164,24 +164,24 @@ export function processDailyReadingsForUsina(
   // b) Guardar o horário exato (Timestamp) desse pico
   const maxPeakTimestamp = maxPoint.timestamp;
 
-  // c) Comparar o Pico Máximo com a Demanda Contratada e Limite de Tolerância (103%)
+  // c) Comparar o Pico Máximo com a Demanda Contratada e Limite de Tolerância (104%)
   const isAboveContract = maxPeakKw > usina.contractedDemandKw;
-  const isAboveTolerance = maxPeakKw > toleranceKw;
+  const isAboveTolerance = maxPeakKw >= toleranceKw;
   const excessKw = isAboveContract ? Number((maxPeakKw - usina.contractedDemandKw).toFixed(2)) : 0;
   const percentageOfContracted = Number(((maxPeakKw / usina.contractedDemandKw) * 100).toFixed(1));
 
   // d) Definir Status
-  // Apenas quem ultrapassou 103% da demanda contratada é classificado como EXCEEDED
+  // Apenas quem ultrapassou 104% da demanda contratada é classificado como EXCEEDED
   let status: 'EXCEEDED' | 'WARNING' | 'OK' = 'OK';
   let statusReason = 'OPERAÇÃO REGULAR: Potência ativa dentro do limite contratual';
 
   if (isAboveTolerance) {
     status = 'EXCEEDED';
     const excessTol = Number((maxPeakKw - toleranceKw).toFixed(2));
-    statusReason = `ULTRAPASSAGEM DETECTADA (> 103%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância de 103% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
+    statusReason = `ULTRAPASSAGEM DETECTADA (> 104%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância de 104% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
   } else if (isAboveContract) {
     status = 'WARNING';
-    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância de até 103% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
+    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância de até 104% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
   } else if (percentageOfContracted >= 90) {
     status = 'WARNING';
     statusReason = `ALERTA DE PROXIMIDADE: Potência ativa em ${percentageOfContracted}% da demanda contratada`;

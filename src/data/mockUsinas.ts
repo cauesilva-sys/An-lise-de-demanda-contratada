@@ -217,7 +217,7 @@ export function generateUsinaTelemetrySummary(
 
   const capacityKwp = usina.capacityKwp || usina.capacityKw;
   const isJuly2026 = startDate.getFullYear() === 2026 && startDate.getMonth() === 6;
-  const toleranceKw = Number((usina.contractedDemandKw * 1.03).toFixed(2));
+  const toleranceKw = Number((usina.contractedDemandKw * 1.04).toFixed(2));
 
   const buildPeakRecord = (
     id: string,
@@ -225,7 +225,7 @@ export function generateUsinaTelemetrySummary(
     powerKw: number,
     durationMin: number
   ): PeakRecord => {
-    const isAboveTolerance = powerKw > toleranceKw;
+    const isAboveTolerance = powerKw >= toleranceKw;
     const isSustained5Min = durationMin >= 5;
     const exceeded = isAboveTolerance;
 
@@ -593,7 +593,7 @@ export function generateUsinaTelemetrySummary(
       let calculatedPeak = Number((capacityKwp * prRatio).toFixed(2));
 
       if (!isSept2026 && (mod === 1 || mod === 6) && capacityKwp > usina.contractedDemandKw) {
-        calculatedPeak = Number((usina.contractedDemandKw * (1.03 + (periodSeed % 12) / 100)).toFixed(2));
+        calculatedPeak = Number((usina.contractedDemandKw * (1.04 + (periodSeed % 12) / 100)).toFixed(2));
         if (calculatedPeak > capacityKwp) {
           calculatedPeak = Number((capacityKwp * 0.98).toFixed(2));
         }
@@ -641,7 +641,7 @@ export function generateUsinaTelemetrySummary(
   const percentageOfContracted = Number(((maxPeakKw / usina.contractedDemandKw) * 100).toFixed(1));
 
   const isExceededContract = maxPeakKw > usina.contractedDemandKw;
-  const isAboveTolerance = maxPeakKw > toleranceKw;
+  const isAboveTolerance = maxPeakKw >= toleranceKw;
   const isSustained5Min = sustainedDurationMinutes >= 5;
 
   let status: 'OK' | 'WARNING' | 'EXCEEDED' = 'OK';
@@ -650,10 +650,10 @@ export function generateUsinaTelemetrySummary(
   if (isAboveTolerance) {
     status = 'EXCEEDED';
     const excessTol = Number((maxPeakKw - toleranceKw).toFixed(2));
-    statusReason = `ULTRAPASSAGEM DETECTADA (> 103%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância de 103% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
+    statusReason = `ULTRAPASSAGEM DETECTADA (> 104%): Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW ultrapassou o limite de tolerância de 104% (${toleranceKw.toLocaleString('pt-BR')} kW) por +${excessTol.toLocaleString('pt-BR')} kW`;
   } else if (isExceededContract) {
     status = 'WARNING';
-    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância de até 103% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
+    statusReason = `ALERTA DE TOLERÂNCIA: Pico de ${maxPeakKw.toLocaleString('pt-BR')} kW excedeu o contrato de ${usina.contractedDemandKw.toLocaleString('pt-BR')} kW, mas está resguardado pela tolerância de até 104% (${toleranceKw.toLocaleString('pt-BR')} kW)`;
   } else if (percentageOfContracted >= 90) {
     status = 'WARNING';
     statusReason = `ALERTA DE PROXIMIDADE: Potência ativa em ${percentageOfContracted}% da demanda contratada`;
@@ -696,7 +696,7 @@ export function processRealTimeseriesArray(
   usina: Usina,
   aggregate: string = '5 min'
 ): { summary: UsinaDemandSummary; series: TimeSeriesSamplePoint[] } {
-  const toleranceKw = Number((usina.contractedDemandKw * 1.03).toFixed(2));
+  const toleranceKw = Number((usina.contractedDemandKw * 1.04).toFixed(2));
 
   const formattedSeries: TimeSeriesSamplePoint[] = (dataPoints || []).map((p) => {
     const rawVal =
@@ -740,19 +740,19 @@ export function processRealTimeseriesArray(
     if (seenTs.has(pt.fullTimestamp)) continue;
     seenTs.add(pt.fullTimestamp);
 
-    const isAboveTolerance = pt.activePowerKw > toleranceKw;
+    const isAboveTolerance = pt.activePowerKw >= toleranceKw;
 
     // Calculate sustained duration
     const ptIdx = formattedSeries.findIndex((p) => p.fullTimestamp === pt.fullTimestamp);
     let consecutiveCount = 0;
     if (ptIdx !== -1) {
       let l = ptIdx;
-      while (l >= 0 && formattedSeries[l].activePowerKw > toleranceKw) {
+      while (l >= 0 && formattedSeries[l].activePowerKw >= toleranceKw) {
         consecutiveCount++;
         l--;
       }
       let r = ptIdx + 1;
-      while (r < formattedSeries.length && formattedSeries[r].activePowerKw > toleranceKw) {
+      while (r < formattedSeries.length && formattedSeries[r].activePowerKw >= toleranceKw) {
         consecutiveCount++;
         r++;
       }
@@ -781,18 +781,21 @@ export function processRealTimeseriesArray(
 
   const highestPeakRecord = topPeaks[0];
   const sustainedDurationMinutes = highestPeakRecord ? highestPeakRecord.durationMinutes : 0;
-  const isAboveTolerance = maxPeakKw > toleranceKw;
+  const isAboveTolerance = maxPeakKw >= toleranceKw;
   const isSustained5Min = sustainedDurationMinutes >= 5;
 
   let status: 'OK' | 'WARNING' | 'EXCEEDED' = 'OK';
-  let statusReason = 'Operação em conformidade com a demanda contratada e tolerância de até 103%';
+  let statusReason = 'Operação em conformidade com a demanda contratada e tolerância de até 104%';
 
   if (isAboveTolerance && isSustained5Min) {
     status = 'EXCEEDED';
-    statusReason = `Infração validada: Potência (${maxPeakKw} kW) > 103% da contratada (${toleranceKw} kW) por ${sustainedDurationMinutes} min contínuos`;
+    statusReason = `Infração validada: Potência (${maxPeakKw} kW) >= 104% da contratada (${toleranceKw} kW) por ${sustainedDurationMinutes} min contínuos`;
   } else if (isAboveTolerance && !isSustained5Min) {
     status = 'WARNING';
     statusReason = `Pico transiente de ${maxPeakKw} kW (${sustainedDurationMinutes} min) desconsiderado por ser < 5 min contínuos`;
+  } else if (maxPeakKw > usina.contractedDemandKw) {
+    status = 'WARNING';
+    statusReason = `Alerta de tolerância: Potência de ${maxPeakKw} kW excede o contrato, mas respeita a tolerância regulatória de até 104% (${toleranceKw} kW)`;
   } else if ((maxPeakKw / usina.contractedDemandKw) * 100 >= 90) {
     status = 'WARNING';
     statusReason = `Operação em atenção: Potência atinge ${((maxPeakKw / usina.contractedDemandKw) * 100).toFixed(1)}% da demanda contratada`;

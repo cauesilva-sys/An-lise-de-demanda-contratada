@@ -31,29 +31,23 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
   startTime,
   endTime,
 }) => {
-  if (!summary) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-sm">
-        <Zap className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-        <p className="text-sm font-bold text-slate-800">Nenhuma usina selecionada no momento.</p>
-        <p className="text-xs text-slate-500 mt-1">Selecione uma usina no filtro acima para analisar os dados de demanda.</p>
-      </div>
-    );
-  }
-
-  const [datePart, timePart] = summary.maxPeakTimestamp ? summary.maxPeakTimestamp.split(' ') : ['', ''];
+  const [datePart, timePart] = summary?.maxPeakTimestamp ? summary.maxPeakTimestamp.split(' ') : ['', ''];
   const formattedDate = datePart ? datePart.split('-').reverse().join('/') : '--/--/----';
   const formattedTime = timePart || '00:00:00';
 
-  const isExceeded = summary.status === 'EXCEEDED';
-  const isWarning = summary.status === 'WARNING';
+  const isExceeded = summary?.status === 'EXCEEDED';
+  const isWarning = summary?.status === 'WARNING';
 
-  // Time-series sampling inspection state
+  // Time-series sampling inspection state - unconditionally declared before any returns
   const defaultInspectDate = datePart || '2026-09-02';
   const [inspectDate, setInspectDate] = useState<string>(defaultInspectDate);
   const [aggregation, setAggregation] = useState<'5 min' | '7 min'>('5 min');
   const [hoveredPoint, setHoveredPoint] = useState<TimeSeriesSamplePoint | null>(null);
   const [tableFilter, setTableFilter] = useState<'ALL' | 'EXCEEDED' | 'NON_ZERO'>('ALL');
+
+  const usinaName = summary?.usinaName || '';
+  const contractedDemandKw = summary?.contractedDemandKw || 1000;
+  const toleranceKw = summary?.toleranceKw || Number((contractedDemandKw * 1.04).toFixed(2));
 
   useEffect(() => {
     if (datePart) {
@@ -61,30 +55,32 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
     } else {
       setInspectDate('2026-09-02');
     }
-  }, [datePart, summary.usinaName]);
+  }, [datePart, usinaName]);
 
   // Generate samples for the selected usina and date (5 min or 7 min)
   const timeSeries7Min = useMemo(() => {
+    if (!summary) return [];
     if (aggregation === '5 min') {
-      const pts288 = generate288DailySamplePoints(summary.usinaName, summary.contractedDemandKw, inspectDate);
+      const pts288 = generate288DailySamplePoints(usinaName, contractedDemandKw, inspectDate);
       return pts288.map((p) => ({
         time: p.timestamp.split(' ')[1] || '',
         fullTimestamp: p.timestamp,
         activePowerKw: p.value,
       }));
     }
-    return generate7MinSampleSeries(summary.usinaName, summary.contractedDemandKw, inspectDate);
-  }, [summary.usinaName, summary.contractedDemandKw, inspectDate, aggregation]);
+    return generate7MinSampleSeries(usinaName, contractedDemandKw, inspectDate);
+  }, [summary, usinaName, contractedDemandKw, inspectDate, aggregation]);
 
   // Max value for SVG scale
   const maxKwInSeries = useMemo(() => {
+    if (!summary || timeSeries7Min.length === 0) return 100;
     const pMax = Math.max(...timeSeries7Min.map((p) => p.activePowerKw));
-    return Math.max(pMax, summary.contractedDemandKw * 1.15, 100);
-  }, [timeSeries7Min, summary.contractedDemandKw]);
+    return Math.max(pMax, contractedDemandKw * 1.15, 100);
+  }, [summary, timeSeries7Min, contractedDemandKw]);
 
   // SVG points string generator
   const svgPathD = useMemo(() => {
-    if (timeSeries7Min.length === 0) return '';
+    if (!summary || timeSeries7Min.length === 0) return '';
     const width = 800;
     const height = 220;
     const paddingX = 40;
@@ -100,10 +96,10 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
     });
 
     return `M ${paddingX},${height - paddingY} L ` + points.join(' L ') + ` L ${width - paddingX},${height - paddingY} Z`;
-  }, [timeSeries7Min, maxKwInSeries]);
+  }, [summary, timeSeries7Min, maxKwInSeries]);
 
   const lineD = useMemo(() => {
-    if (timeSeries7Min.length === 0) return '';
+    if (!summary || timeSeries7Min.length === 0) return '';
     const width = 800;
     const height = 220;
     const paddingX = 40;
@@ -119,26 +115,38 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
     });
 
     return 'M ' + points.join(' L ');
-  }, [timeSeries7Min, maxKwInSeries]);
+  }, [summary, timeSeries7Min, maxKwInSeries]);
 
   // Contracted demand Y coordinate on SVG
   const contractedY = useMemo(() => {
+    if (!summary) return 0;
     const height = 220;
     const paddingY = 20;
     const usableH = height - paddingY * 2;
-    return height - paddingY - (summary.contractedDemandKw / maxKwInSeries) * usableH;
-  }, [summary.contractedDemandKw, maxKwInSeries]);
+    return height - paddingY - (contractedDemandKw / maxKwInSeries) * usableH;
+  }, [summary, contractedDemandKw, maxKwInSeries]);
 
   const filtered7MinPoints = useMemo(() => {
-    const limitKw = summary.toleranceKw || summary.contractedDemandKw * 1.03;
+    if (!summary) return [];
+    const limitKw = toleranceKw;
     if (tableFilter === 'EXCEEDED') {
-      return timeSeries7Min.filter((p) => p.activePowerKw > limitKw);
+      return timeSeries7Min.filter((p) => p.activePowerKw >= limitKw);
     }
     if (tableFilter === 'NON_ZERO') {
       return timeSeries7Min.filter((p) => p.activePowerKw > 0);
     }
     return timeSeries7Min;
-  }, [timeSeries7Min, tableFilter, summary.contractedDemandKw, summary.toleranceKw]);
+  }, [summary, timeSeries7Min, tableFilter, toleranceKw]);
+
+  if (!summary) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-sm">
+        <Zap className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+        <p className="text-sm font-bold text-slate-800">Nenhuma usina selecionada no momento.</p>
+        <p className="text-xs text-slate-500 mt-1">Selecione uma usina no filtro acima para analisar os dados de demanda.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 lg:p-6 shadow-sm space-y-6">
@@ -224,7 +232,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
           </div>
         </div>
 
-        {/* Box 3: Contracted Demand & Tolerance (+3% / 103%) */}
+        {/* Box 3: Contracted Demand & Tolerance (+4% / 104%) */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
@@ -239,7 +247,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
             </div>
 
             <div className="mt-1 text-[11px] font-bold text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded border border-blue-100 inline-block">
-              Limite +3% (103%): {summary.toleranceKw ? summary.toleranceKw.toLocaleString('pt-BR') : Math.round(summary.contractedDemandKw * 1.03).toLocaleString('pt-BR')} kW
+              Limite +4% (104%): {summary.toleranceKw ? summary.toleranceKw.toLocaleString('pt-BR') : Math.round(summary.contractedDemandKw * 1.04).toLocaleString('pt-BR')} kW
             </div>
 
             <div className="mt-2">
@@ -294,20 +302,20 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
               {isExceeded
                 ? '⚠️ ULTRAPASSAGEM DETECTADA!'
                 : isWarning
-                ? '⚡ ALERTA DE PROXIMIDADE'
+                ? '⚡ ALERTA DE TOLERÂNCIA / PROXIMIDADE'
                 : '✅ OPERAÇÃO REGULAR'}
             </h3>
 
             <p className="text-xs mt-1 text-slate-700 leading-relaxed font-medium">
               {summary.statusReason || (isExceeded
-                ? `O pico de ${summary.maxPeakKw.toLocaleString('pt-BR')} kW excedeu o limite de 103% da contratada por ${summary.sustainedDurationMinutes} min contínuos.`
-                : `Operação regular respeitando limite de 103% (+3%) de tolerância e 5 min de persistência.`)}
+                ? `O pico de ${summary.maxPeakKw.toLocaleString('pt-BR')} kW excedeu o limite de 104% da contratada por ${summary.sustainedDurationMinutes} min contínuos.`
+                : `Operação regular respeitando limite de 104% (+4%) de tolerância regulatória.`)}
             </p>
           </div>
 
           <div className="mt-3 pt-2 border-t border-slate-300/60 text-[11px] font-semibold flex items-center justify-between">
             <span>Regra de Tolerância:</span>
-            <span className="font-mono text-xs font-bold text-slate-900">&gt;103% por &gt;= 5 min</span>
+            <span className="font-mono text-xs font-bold text-slate-900">&gt; 104% por &gt;= 5 min</span>
           </div>
         </div>
       </div>
@@ -506,7 +514,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                       Ponto 13:35:00: <strong>994,70 kW</strong>
                     </span>
                     <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
-                      Pico 14:10:00 → <strong>1.001,87 kW</strong> (Dentro da tolerância de até 103% / 1.030 kW)
+                      Pico 14:10:00 → <strong>1.001,87 kW</strong> (Dentro da tolerância regulamentar de até 104% / 1.040 kW)
                     </span>
                     <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                       API Oficial Delfos (144 leituras)

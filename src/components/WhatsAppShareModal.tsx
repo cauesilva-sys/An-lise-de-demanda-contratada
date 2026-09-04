@@ -82,7 +82,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     lines.push(`📅 *Período:* ${periodStr}`);
     lines.push(`⏱️ *Coleta Acumulada:* ${updateTimeStr}`);
     lines.push(`📊 *Total Monitorado:* ${summaries.length} usinas`);
-    lines.push(`🚨 *Ultrapassaram Demanda (> 103%):* ${exceededUsinas.length} usina(s)`);
+    lines.push(`🚨 *Ultrapassaram Demanda (> 104%):* ${exceededUsinas.length} usina(s)`);
 
     if (includeWarnings) {
       lines.push(`⚠️ *Usinas em Alerta (≥ 90% / Tolerância):* ${warningUsinas.length} usina(s)`);
@@ -99,9 +99,9 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
     if (exceededUsinas.length === 0) {
       lines.push(`✅ *OPERAÇÃO 100% REGULAR NO PERÍODO!*`);
-      lines.push(`Nenhuma usina ultrapassou o limite de tolerância regulatória (+3% / 103% da demanda contratada).`);
+      lines.push(`Nenhuma usina ultrapassou o limite de tolerância regulatória (+4% / 104% da demanda contratada).`);
     } else {
-      lines.push(`🔴 *USINAS COM ULTRAPASSAGEM DETECTADA (> 103%):*`);
+      lines.push(`🔴 *USINAS COM ULTRAPASSAGEM DETECTADA (> 104%):*`);
       lines.push(``);
 
       exceededUsinas.forEach((u, index) => {
@@ -118,7 +118,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           lines.push(`${index + 1}️⃣ *${u.usinaName}*`);
           lines.push(`• *Pico Máximo:* *${u.maxPeakKw.toLocaleString('pt-BR')} kW* (${u.percentageOfContracted}% do contrato)`);
           lines.push(
-            `• *Demanda Contratada:* ${u.contractedDemandKw.toLocaleString('pt-BR')} kW (Limite 103%: ${u.toleranceKw.toLocaleString('pt-BR')} kW)`
+            `• *Demanda Contratada:* ${u.contractedDemandKw.toLocaleString('pt-BR')} kW (Limite 104%: ${u.toleranceKw.toLocaleString('pt-BR')} kW)`
           );
           lines.push(`• *Excedente:* ${excessFormatted}`);
           lines.push(`• 🕒 *Data e Hora do Maior Pico:* ${dateFormatted} às ${timeFormatted}`);
@@ -130,7 +130,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     if (includeWarnings && warningUsinas.length > 0) {
       lines.push(``);
       lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      lines.push(`⚠️ *USINAS EM FAIXA DE ALERTA (≥ 90% OU NA TOLERÂNCIA DE 103%):*`);
+      lines.push(`⚠️ *USINAS EM FAIXA DE ALERTA (≥ 90% OU NA TOLERÂNCIA DE 104%):*`);
       lines.push(``);
 
       warningUsinas.slice(0, 8).forEach((u, index) => {
@@ -201,7 +201,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-emerald-100/90 mt-0.5">
-                Valores consolidados com dia, hora e excedente (&gt; 103%) para compartilhamento rápido
+                Valores consolidados com dia, hora e excedente (&gt; 104%) para compartilhamento rápido
               </p>
             </div>
           </div>
@@ -225,7 +225,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
           <div className="flex items-center gap-2 font-semibold">
             <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
               <AlertOctagon className="w-3.5 h-3.5 text-red-600" />
-              {exceededUsinas.length} Ultrapassaram (&gt; 103%)
+              {exceededUsinas.length} Ultrapassaram (&gt; 104%)
             </span>
             <span className="text-slate-500 font-normal">de {summaries.length} usinas</span>
           </div>

@@ -62,7 +62,7 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
           <span className="text-slate-500 font-medium">Status no Período:</span>
           <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-            {metrics.totalUsinas - metrics.usinasExceededCount} Regulares (≤ 103%)
+            {metrics.totalUsinas - metrics.usinasExceededCount} Regulares (≤ 104%)
           </span>
         </div>
         <div className="mt-2 text-[10px] text-blue-600 font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -70,7 +70,7 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
         </div>
       </div>
 
-      {/* Card 2: Usinas Ultrapassadas / Em Infração (>103%) */}
+      {/* Card 2: Usinas Ultrapassadas / Em Infração (>104%) */}
       <div
         onClick={() => onSelectCategory && onSelectCategory('EXCEEDED')}
         className={`border rounded-xl p-5 shadow-xs hover:shadow-md cursor-pointer transition-all group relative overflow-hidden ${
@@ -80,12 +80,12 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
             ? 'bg-red-50/60 border-red-200 hover:border-red-300'
             : 'bg-white border-slate-200 hover:border-slate-300'
         }`}
-        title="Clique para filtrar apenas as usinas que ultrapassaram 103% da demanda contratada"
+        title="Clique para filtrar apenas as usinas que ultrapassaram 104% da demanda contratada"
       >
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-red-600 flex items-center gap-1">
             <AlertTriangle className="w-3.5 h-3.5" />
-            Ultrapassaram Demanda (&gt; 103%)
+            Ultrapassaram Demanda (&gt; 104%)
           </span>
           <div className="p-2 bg-red-100 group-hover:bg-red-600 group-hover:text-white rounded-lg text-red-600 transition-colors">
             <MousePointerClick className="w-4 h-4" />
@@ -93,18 +93,18 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-extrabold text-red-600">{metrics.usinasExceededCount}</span>
-          <span className="text-xs text-red-700 font-bold">ultrapassaram &gt; 103%</span>
+          <span className="text-xs text-red-700 font-bold">ultrapassaram &gt; 104%</span>
         </div>
 
         <div className="mt-3 pt-3 border-t border-red-100 flex items-center justify-between text-xs text-slate-500">
-          <span>Outras em Alerta (&gt;90% / ≤103%):</span>
+          <span>Outras em Alerta (&gt;90% / ≤104%):</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               if (onSelectCategory) onSelectCategory('WARNING');
             }}
             className="text-amber-700 font-bold bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 transition-colors flex items-center gap-1"
-            title="Filtrar usinas em alerta (≥90% da demanda ou dentro da tolerância de até 103%)"
+            title="Filtrar usinas em alerta (≥90% da demanda ou dentro da tolerância de até 104%)"
           >
             <span>{metrics.usinasWarningCount} usinas</span>
             <MousePointerClick className="w-3 h-3 text-amber-600" />
@@ -112,7 +112,7 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
         </div>
 
         <div className="mt-2 text-[10px] text-red-700 font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <span>⚡ Clique para filtrar ultrapassagens (&gt; 103%)</span>
+          <span>⚡ Clique para filtrar ultrapassagens (&gt; 104%)</span>
         </div>
       </div>
 
@@ -217,9 +217,9 @@ export const GlobalSummaryCards: React.FC<GlobalSummaryCardsProps> = ({
             </div>
 
             <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-400">Tolerância (+3% / 103%):</span>
+              <span className="text-slate-400">Tolerância (+4% / 104%):</span>
               <span className="font-mono text-slate-800 font-bold">
-                {selectedSummary.toleranceKw ? selectedSummary.toleranceKw.toLocaleString('pt-BR') : Math.round(selectedSummary.contractedDemandKw * 1.03).toLocaleString('pt-BR')} kW
+                {selectedSummary.toleranceKw ? selectedSummary.toleranceKw.toLocaleString('pt-BR') : Math.round(selectedSummary.contractedDemandKw * 1.04).toLocaleString('pt-BR')} kW
               </span>
             </div>
           </div>

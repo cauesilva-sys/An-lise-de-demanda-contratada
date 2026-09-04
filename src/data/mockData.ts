@@ -103,7 +103,7 @@ export interface DemandPeaksResponse {
 /**
  * Substitui a rota backend `/api/telemetry/demand-peaks`.
  * Executa a consolidação de picos das 125 usinas diretamente no client-side,
- * aplicando a regra estrita de ultrapassagem (> 103% da demanda contratada).
+ * aplicando a regra estrita de ultrapassagem (> 104% da demanda contratada).
  */
 export function getMockDemandPeaks(params: {
   apiToken?: string;
@@ -150,7 +150,7 @@ export function getMockDemandPeaks(params: {
     return generateUsinaTelemetrySummary(u, startTime, endTime);
   });
 
-  // Contagem estrita com base no limite de tolerância de 103%
+  // Contagem estrita com base no limite de tolerância regulatória de 104%
   const exceededCount = allSummaries.filter((s) => s.status === 'EXCEEDED').length;
   const warningCount = allSummaries.filter((s) => s.status === 'WARNING').length;
 
@@ -245,7 +245,7 @@ export function getMockLivePlantTimeseries(params: {
   );
 
   const contractedDemandKw = localUsina ? localUsina.contractedDemandKw : 1000;
-  const toleranceKw = Number((contractedDemandKw * 1.03).toFixed(2));
+  const toleranceKw = Number((contractedDemandKw * 1.04).toFixed(2));
   const delfosId = findDelfosDeviceIdByName(usinaName);
 
   // Gera os 288 pontos diários com base na telemetria oficial Delfos
@@ -261,10 +261,12 @@ export function getMockLivePlantTimeseries(params: {
     }
   });
 
-  const isAboveTolerance = maxPeak > toleranceKw;
+  const isAboveTolerance = maxPeak >= toleranceKw;
   const status: 'EXCEEDED' | 'WARNING' | 'OK' = isAboveTolerance
     ? 'EXCEEDED'
-    : maxPeak > contractedDemandKw * 0.9
+    : maxPeak > contractedDemandKw
+    ? 'WARNING'
+    : maxPeak >= contractedDemandKw * 0.9
     ? 'WARNING'
     : 'OK';
 

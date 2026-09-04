@@ -618,7 +618,7 @@ async function startServer() {
         usinaName.toLowerCase().includes(u.name.toLowerCase())
     );
     const contractedDemandKw = localUsina ? localUsina.contractedDemandKw : 1000;
-    const toleranceKw = Number((contractedDemandKw * 1.03).toFixed(2));
+    const toleranceKw = Number((contractedDemandKw * 1.04).toFixed(2));
 
     // Função auxiliar para retornar fallback imediato em caso de 404 ou erro na API remota
     const returnLocalFallback = (reason: string) => {
@@ -639,7 +639,7 @@ async function startServer() {
         localDelfosEntry?.maxPeakTimestamp ||
         pts.find((p) => p.value === maxPeak)?.timestamp ||
         `${targetDate} 12:00:00`;
-      const isAboveTolerance = maxPeak > toleranceKw;
+      const isAboveTolerance = maxPeak >= toleranceKw;
 
       return res.json({
         success: true,
@@ -652,7 +652,7 @@ async function startServer() {
         toleranceKw,
         maxPeakKw: Number(maxPeak.toFixed(2)),
         maxPeakTimestamp: maxTimestamp,
-        status: isAboveTolerance ? 'EXCEEDED' : maxPeak > contractedDemandKw * 0.9 ? 'WARNING' : 'OK',
+        status: isAboveTolerance ? 'EXCEEDED' : maxPeak > contractedDemandKw ? 'WARNING' : maxPeak >= contractedDemandKw * 0.9 ? 'WARNING' : 'OK',
         points: pts,
       });
     };
