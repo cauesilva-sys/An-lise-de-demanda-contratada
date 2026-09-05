@@ -140,7 +140,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
 
   if (!summary) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-sm">
+      <div key="empty-detail-card" className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-sm">
         <Zap className="w-8 h-8 text-slate-400 mx-auto mb-2" />
         <p className="text-sm font-bold text-slate-800">Nenhuma usina selecionada no momento.</p>
         <p className="text-xs text-slate-500 mt-1">Selecione uma usina no filtro acima para analisar os dados de demanda.</p>
@@ -149,7 +149,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 lg:p-6 shadow-sm space-y-6">
+    <div key={`selected-usina-${summary.usinaId}`} className="bg-white border border-slate-200 rounded-xl p-5 lg:p-6 shadow-sm space-y-6">
       {/* Top Bar / Header of Selected Usina */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
@@ -356,7 +356,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
 
                   return (
                     <tr
-                      key={peak.id}
+                      key={`top-peak-${peak.id || idx}-${peak.timestamp}`}
                       className={`hover:bg-slate-50/80 transition-colors ${
                         peak.exceeded ? 'bg-red-50/40' : ''
                       }`}
@@ -392,11 +392,11 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                       </td>
                       <td className="py-3 px-4 text-right font-sans">
                         {peak.exceeded ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded uppercase tracking-wider">
+                          <span key={`peak-status-ex-${idx}`} className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded uppercase tracking-wider">
                             ULTRAPASSOU
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                          <span key={`peak-status-ok-${idx}`} className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">
                             OK
                           </span>
                         )}
@@ -405,7 +405,7 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                   );
                 })
               ) : (
-                <tr>
+                <tr key="empty-top-peaks-row">
                   <td colSpan={8} className="py-4 text-center text-slate-400 text-xs font-sans">
                     Nenhum registro de pico para este período.
                   </td>
@@ -478,38 +478,38 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
               </span>
             </div>
             {hoveredPoint ? (
-              <div className="bg-slate-800/90 border border-sky-500/40 px-3 py-1 rounded-lg text-xs font-mono text-sky-200 flex items-center gap-3 shadow-lg">
+              <div key="hovered-point-tooltip" className="bg-slate-800/90 border border-sky-500/40 px-3 py-1 rounded-lg text-xs font-mono text-sky-200 flex items-center gap-3 shadow-lg">
                 <span>Sample Time: <strong className="text-white">{hoveredPoint.fullTimestamp}</strong></span>
                 <span>|</span>
                 <span>Active Power: <strong className="text-amber-300 font-extrabold">{hoveredPoint.activePowerKw.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kW</strong></span>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-300 font-mono">
+              <div key="default-point-details" className="flex flex-wrap items-center gap-3 text-[11px] text-slate-300 font-mono">
                 <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
                   Pico Máximo: {summary.maxPeakTimestamp?.split(' ')[1] || '10:05:00'} → <strong>{summary.maxPeakKw.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kW</strong>
                 </span>
-                {summary.usinaName.includes('Uruguaiana') && (
-                  <>
+                {summary.usinaName.includes('Uruguaiana') ? (
+                  <React.Fragment key="uruguaiana-badges">
                     <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
                       Amostra 11:05:00: <strong>4.594,15 kW</strong>
                     </span>
                     <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                       Planilha Oficial (288 pontos integrados)
                     </span>
-                  </>
-                )}
-                {summary.usinaName.includes('Presidente Alves') && (
-                  <>
+                  </React.Fragment>
+                ) : null}
+                {summary.usinaName.includes('Presidente Alves') ? (
+                  <React.Fragment key="presalves-badges">
                     <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
                       Amostra 13:20:00: <strong>3.199,74 kW</strong>
                     </span>
                     <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                       API Delfos (Pico 14:00:00 → 3.260,63 kW)
                     </span>
-                  </>
-                )}
-                {summary.usinaName.includes('Salto de Pirapora') && (
-                  <>
+                  </React.Fragment>
+                ) : null}
+                {summary.usinaName.includes('Salto de Pirapora') ? (
+                  <React.Fragment key="pirapora-badges">
                     <span className="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">
                       Ponto 13:35:00: <strong>994,70 kW</strong>
                     </span>
@@ -519,8 +519,8 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                     <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30">
                       API Oficial Delfos (144 leituras)
                     </span>
-                  </>
-                )}
+                  </React.Fragment>
+                ) : null}
               </div>
             )}
           </div>
@@ -570,14 +570,15 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                 const isSample1315 = summary.usinaName.includes('Uruguaiana') && pt.time === '13:15:00';
 
                 return (
-                  <g key={i} className="cursor-pointer" onMouseEnter={() => setHoveredPoint(pt)}>
-                    {isPeak && (
-                      <circle cx={x} cy={y} r="7" fill="#f59e0b" className="animate-ping opacity-75" />
-                    )}
-                    {isSample1315 && (
-                      <circle cx={x} cy={y} r="7" fill="#10b981" className="animate-ping opacity-75" />
-                    )}
+                  <g key={`svg-dot-${pt.fullTimestamp || pt.time || i}`} className="cursor-pointer" onMouseEnter={() => setHoveredPoint(pt)}>
+                    {isPeak ? (
+                      <circle key={`peak-ping-${i}`} cx={x} cy={y} r="7" fill="#f59e0b" className="animate-ping opacity-75" />
+                    ) : null}
+                    {isSample1315 ? (
+                      <circle key={`sample-ping-${i}`} cx={x} cy={y} r="7" fill="#10b981" className="animate-ping opacity-75" />
+                    ) : null}
                     <circle
+                      key={`main-dot-${i}`}
                       cx={x}
                       cy={y}
                       r={isPeak || isSample1315 ? "5.5" : "3"}
@@ -592,29 +593,29 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
           </div>
 
           {/* Time axis labels */}
-          <div className="flex justify-between text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800">
+          <div key={`axis-labels-${aggregation}`} className="flex justify-between text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800">
             {aggregation === '5 min' ? (
-              <>
-                <span>00:00</span>
-                <span>04:00</span>
-                <span>08:00</span>
-                <span className="text-amber-400 font-bold">11:05 (Pico)</span>
-                <span className="text-emerald-400 font-bold">13:15</span>
-                <span>16:00</span>
-                <span>20:00</span>
-                <span>23:55</span>
-              </>
+              <React.Fragment key="axis-5min">
+                <span key="t0">00:00</span>
+                <span key="t1">04:00</span>
+                <span key="t2">08:00</span>
+                <span key="t3" className="text-amber-400 font-bold">11:05 (Pico)</span>
+                <span key="t4" className="text-emerald-400 font-bold">13:15</span>
+                <span key="t5">16:00</span>
+                <span key="t6">20:00</span>
+                <span key="t7">23:55</span>
+              </React.Fragment>
             ) : (
-              <>
-                <span>06:00</span>
-                <span>08:00</span>
-                <span>10:00</span>
-                <span className="text-amber-400 font-bold">11:05 (Pico)</span>
-                <span>12:00</span>
-                <span>14:00</span>
-                <span>16:00</span>
-                <span>18:00</span>
-              </>
+              <React.Fragment key="axis-7min">
+                <span key="t0">06:00</span>
+                <span key="t1">08:00</span>
+                <span key="t2">10:00</span>
+                <span key="t3" className="text-amber-400 font-bold">11:05 (Pico)</span>
+                <span key="t4">12:00</span>
+                <span key="t5">14:00</span>
+                <span key="t6">16:00</span>
+                <span key="t7">18:00</span>
+              </React.Fragment>
             )}
           </div>
         </div>
@@ -674,58 +675,66 @@ export const SelectedUsinaDetailCard: React.FC<SelectedUsinaDetailCardProps> = (
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {filtered7MinPoints.map((pt, idx) => {
-                  const pct = (pt.activePowerKw / summary.contractedDemandKw) * 100;
-                  const isEx = pt.activePowerKw > summary.contractedDemandKw;
-                  const isTopPeak = pt.activePowerKw === summary.maxPeakKw || pt.activePowerKw >= 2293.60;
+                {filtered7MinPoints.length > 0 ? (
+                  filtered7MinPoints.map((pt, idx) => {
+                    const pct = (pt.activePowerKw / summary.contractedDemandKw) * 100;
+                    const isEx = pt.activePowerKw > summary.contractedDemandKw;
+                    const isTopPeak = pt.activePowerKw === summary.maxPeakKw || pt.activePowerKw >= 2293.60;
 
-                  return (
-                    <tr
-                      key={idx}
-                      className={`hover:bg-blue-50/50 transition-colors ${
-                        isTopPeak
-                          ? 'bg-amber-100/60 font-bold border-l-4 border-l-amber-500'
-                          : isEx
-                          ? 'bg-red-50/50'
-                          : ''
-                      }`}
-                    >
-                      <td className="py-2 px-3 font-bold text-blue-700">{pt.time}</td>
-                      <td className="py-2 px-3 text-slate-600">{pt.fullTimestamp}</td>
-                      <td className="py-2 px-3 font-extrabold text-slate-900">
-                        {pt.activePowerKw.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kW
-                        {isTopPeak && (
-                          <span className="ml-2 px-1.5 py-0.5 bg-amber-500 text-white rounded text-[10px] font-sans font-bold">
-                            ★ PICO MÁXIMO
+                    return (
+                      <tr
+                        key={`meas-pt-${pt.fullTimestamp || pt.time || idx}`}
+                        className={`hover:bg-blue-50/50 transition-colors ${
+                          isTopPeak
+                            ? 'bg-amber-100/60 font-bold border-l-4 border-l-amber-500'
+                            : isEx
+                            ? 'bg-red-50/50'
+                            : ''
+                        }`}
+                      >
+                        <td className="py-2 px-3 font-bold text-blue-700">{pt.time}</td>
+                        <td className="py-2 px-3 text-slate-600">{pt.fullTimestamp}</td>
+                        <td className="py-2 px-3 font-extrabold text-slate-900">
+                          {pt.activePowerKw.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} kW
+                          {isTopPeak ? (
+                            <span key="top-peak-badge" className="ml-2 px-1.5 py-0.5 bg-amber-500 text-white rounded text-[10px] font-sans font-bold">
+                              ★ PICO MÁXIMO
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="py-2 px-3 text-slate-500">
+                          {summary.contractedDemandKw.toLocaleString('pt-BR')} kW
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              pct > 100
+                                ? 'bg-red-100 text-red-700'
+                                : pct >= 90
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {pct.toFixed(1)}%
                           </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-slate-500">
-                        {summary.contractedDemandKw.toLocaleString('pt-BR')} kW
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            pct > 100
-                              ? 'bg-red-100 text-red-700'
-                              : pct >= 90
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}
-                        >
-                          {pct.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-right font-sans">
-                        {isEx ? (
-                          <span className="text-[10px] font-bold text-red-600 uppercase">Ultrapassou</span>
-                        ) : (
-                          <span className="text-[10px] font-semibold text-slate-500">Normal</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                        <td className="py-2 px-3 text-right font-sans">
+                          {isEx ? (
+                            <span key="status-ultrapassou" className="text-[10px] font-bold text-red-600 uppercase">Ultrapassou</span>
+                          ) : (
+                            <span key="status-normal" className="text-[10px] font-semibold text-slate-500">Normal</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr key="empty-meas-table-row">
+                    <td colSpan={6} className="py-4 text-center text-slate-400 text-xs font-sans">
+                      Nenhuma medição encontrada para este filtro.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

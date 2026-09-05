@@ -35,12 +35,12 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className="text-xl font-bold tracking-tight text-slate-900">
                 Monitor de Demanda de Usinas
               </h1>
-              {exceededCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-200">
+              {exceededCount > 0 ? (
+                <span key="header-exceeded-badge" className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-200">
                   <ShieldAlert className="w-3.5 h-3.5" />
                   {exceededCount} {exceededCount === 1 ? 'usina ultrapassou' : 'usinas ultrapassaram'}
                 </span>
-              )}
+              ) : null}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Análise numérica de picos de potência ativa (kW), data, hora e verificação de demanda contratada
@@ -51,17 +51,18 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Actions & Last Collection Badge */}
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Badge informativo da última coleta manual/automática */}
-          {lastCollectionTime && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-mono shadow-2xs" title="Data e hora da última requisição na API Delfos">
+          {lastCollectionTime ? (
+            <div key="header-last-collection" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-mono shadow-2xs" title="Data e hora da última requisição na API Delfos">
               <Clock className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-slate-500 font-sans font-medium">Última coleta:</span>
               <strong className="text-slate-900 font-bold">{lastCollectionTime}</strong>
             </div>
-          )}
+          ) : null}
 
           {/* WhatsApp Share Button */}
-          {onOpenWhatsApp && (
+          {onOpenWhatsApp ? (
             <button
+              key="header-whatsapp-btn"
               onClick={onOpenWhatsApp}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-900 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-[0.98]"
               title="Copiar e compartilhar resumo no WhatsApp"
@@ -69,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
               <MessageSquare className="w-3.5 h-3.5" />
               <span>WhatsApp</span>
             </button>
-          )}
+          ) : null}
 
           {/* Refresh / Coletar Button */}
           <button

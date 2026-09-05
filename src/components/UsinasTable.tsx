@@ -135,7 +135,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
             {filteredSummaries.length > 0 ? (
-              filteredSummaries.map((s) => {
+              filteredSummaries.map((s, idx) => {
                 const isSelected = selectedUsinaId === s.usinaId;
                 const [datePart, timePart] = s.maxPeakTimestamp ? s.maxPeakTimestamp.split(' ') : ['', ''];
                 const formattedDate = datePart ? datePart.split('-').reverse().join('/') : '--/--/----';
@@ -143,7 +143,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
 
                 return (
                   <tr
-                    key={s.usinaId}
+                    key={`usina-row-${s.usinaId || `idx-${idx}`}`}
                     className={`hover:bg-slate-50/80 transition-colors ${
                       isSelected ? 'bg-blue-50/60 border-l-4 border-l-blue-600' : ''
                     } ${s.status === 'EXCEEDED' ? 'bg-red-50/30' : ''}`}
@@ -166,8 +166,9 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                           {s.contractedDemandKw.toLocaleString('pt-BR')} kW
                         </span>
                         <button
+                          type="button"
                           onClick={() => onEditContract(s.usinaId, s.contractedDemandKw, s.usinaName)}
-                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors rounded hover:bg-slate-100"
+                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors rounded hover:bg-slate-100 cursor-pointer"
                           title="Editar contrato de demanda"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -236,7 +237,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                     {/* Status Badge */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {s.status === 'EXCEEDED' ? (
-                        <div className="flex flex-col gap-0.5">
+                        <div key={`status-exceeded-${s.usinaId || idx}`} className="flex flex-col gap-0.5">
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200 shadow-xs" title={s.statusReason || 'Ultrapassagem acima de 104% da demanda contratada'}>
                             <AlertOctagon className="w-3.5 h-3.5 text-red-600" />
                             ULTRAPASSOU &gt; 104% (+{s.excessKw.toLocaleString('pt-BR')} kW)
@@ -246,7 +247,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                           </span>
                         </div>
                       ) : s.status === 'WARNING' ? (
-                        <div className="flex flex-col gap-0.5">
+                        <div key={`status-warning-${s.usinaId || idx}`} className="flex flex-col gap-0.5">
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200" title={s.statusReason || 'Faixa de alerta (>=90%) ou na tolerância de até 104%'}>
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                             {s.maxPeakKw > s.contractedDemandKw ? 'TOLERÂNCIA ≤ 104%' : 'ALERTA ≥ 90%'}
@@ -262,7 +263,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                           )}
                         </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200" title="Dentro da demanda contratada e tolerância regulatória de até 104%">
+                        <span key={`status-regular-${s.usinaId || idx}`} className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200" title="Dentro da demanda contratada e tolerância regulatória de até 104%">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           OPERAÇÃO REGULAR
                         </span>
@@ -272,8 +273,9 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                     {/* Action */}
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <button
+                        type="button"
                         onClick={() => onSelectUsina(s.usinaId)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-blue-600 text-white font-bold shadow-xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
@@ -287,7 +289,7 @@ export const UsinasTable: React.FC<UsinasTableProps> = ({
                 );
               })
             ) : (
-              <tr>
+              <tr key="empty-usinas-table-row">
                 <td colSpan={9} className="py-8 text-center text-slate-400 font-medium">
                   Nenhuma usina encontrada com o filtro atual.
                 </td>

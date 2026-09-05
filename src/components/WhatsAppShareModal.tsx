@@ -276,6 +276,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
           {isEditing ? (
             <textarea
+              key="textarea-editor"
               rows={12}
               value={editedText}
               onChange={(e) => setEditedText(e.target.value)}
@@ -283,14 +284,14 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
               placeholder="Digite ou ajuste a mensagem..."
             />
           ) : (
-            <div className="bg-[#E7FFDB] border border-emerald-200/80 rounded-2xl p-4 shadow-sm relative text-slate-900 text-xs font-sans whitespace-pre-wrap leading-relaxed select-text">
+            <div key="preview-balloon" className="bg-[#E7FFDB] border border-emerald-200/80 rounded-2xl p-4 shadow-sm relative text-slate-900 text-xs font-sans whitespace-pre-wrap leading-relaxed select-text">
               {generatedMessage}
             </div>
           )}
 
           {/* Campo opcional de Nota */}
-          {!isEditing && (
-            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs">
+          {!isEditing ? (
+            <div key="custom-note-field" className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Adicionar Observação / Comentário (Opcional):
               </label>
@@ -302,19 +303,19 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
                 className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Rodapé com Botões de Ação */}
         <div className="bg-white border-t border-slate-200 px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-slate-500 flex items-center gap-1.5">
             {copied ? (
-              <span className="text-emerald-700 font-bold flex items-center gap-1 animate-in fade-in">
+              <span key="msg-copied-text" className="text-emerald-700 font-bold flex items-center gap-1 animate-in fade-in">
                 <Check className="w-4 h-4 text-emerald-600" />
                 Mensagem copiada com sucesso para o WhatsApp!
               </span>
             ) : (
-              <span>Clique em Copiar para colar direto no WhatsApp Web ou App.</span>
+              <span key="msg-copy-hint">Clique em Copiar para colar direto no WhatsApp Web ou App.</span>
             )}
           </div>
 

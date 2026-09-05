@@ -16,6 +16,7 @@ import { WhatsAppShareModal } from './components/WhatsAppShareModal';
 import { exportDemandSummariesToCsv } from './utils/exportCsv';
 import { executeSingleDailyCollection } from './services/delfosApi';
 import { getMockUsinas, updateMockContractedDemand } from './data/mockData';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw } from 'lucide-react';
 
 export default function App() {
@@ -254,13 +255,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-700 font-sans selection:bg-blue-600 selection:text-white pb-16">
-      {/* Toast notification */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-slate-800 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {/* Toast notification slot */}
+      <div id="toast-portal-slot" aria-live="polite" className="pointer-events-none fixed bottom-5 right-5 z-50">
+        {toastMessage ? (
+          <div
+            key={toastMessage}
+            className="pointer-events-auto bg-slate-900 border border-slate-800 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-bounce"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        ) : null}
+      </div>
 
       {/* Main Header */}
       <Header
@@ -274,102 +280,123 @@ export default function App() {
         onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
       />
 
-      {/* App Body */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
-        {/* Indicador visual de "Processando dados da Delfos..." */}
-        {isLoading && (
-          <div className="bg-blue-600 text-white p-4 rounded-xl shadow-md flex items-center justify-between animate-pulse">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <RotateCcw className="w-5 h-5 animate-spin text-white" />
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">Processando dados da Delfos...</div>
-                <div className="text-xs text-blue-100">
-                  Coleta única diária sob demanda: 288 leituras (5 min) • Sinal: Potência Ativa (kW)
+      {/* App Body protected with ErrorBoundary */}
+      <ErrorBoundary fallbackTitle="Painel de Monitoramento de Demanda" onReset={() => fetchTelemetry(filter, apiToken)}>
+        <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
+          {/* Indicador visual de "Processando dados da Delfos..." */}
+          <div id="loading-indicator-slot">
+            {isLoading ? (
+              <div
+                key="loading-delfos-indicator"
+                className="bg-blue-600 text-white p-4 rounded-xl shadow-md flex items-center justify-between animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <RotateCcw className="w-5 h-5 animate-spin text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold tracking-tight">Processando dados da Delfos...</div>
+                    <div className="text-xs text-blue-100">
+                      Coleta única diária sob demanda: 288 leituras (5 min) • Sinal: Potência Ativa (kW)
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right font-mono text-xs text-blue-100 hidden sm:block">
+                  <div>Rota: <span className="font-bold text-white">POST /timeseries</span></div>
+                  <div>Intervalo: <span className="font-bold text-white">{filter.startTime.split(' ')[0]}</span></div>
                 </div>
               </div>
-            </div>
-            <div className="text-right font-mono text-xs text-blue-100 hidden sm:block">
-              <div>Rota: <span className="font-bold text-white">POST /timeseries</span></div>
-              <div>Intervalo: <span className="font-bold text-white">{filter.startTime.split(' ')[0]}</span></div>
-            </div>
+            ) : null}
           </div>
-        )}
 
-        {/* Global Overview Cards */}
-        <GlobalSummaryCards
-          metrics={globalMetrics}
-          selectedSummary={globalMetrics.selectedUsinaSummary}
-          onSelectUsina={handleSelectUsina}
-          onSelectCategory={handleSelectCategory}
-          activeCategory={statusCategory}
-        />
+          {/* Global Overview Cards */}
+          <GlobalSummaryCards
+            metrics={globalMetrics}
+            selectedSummary={globalMetrics.selectedUsinaSummary}
+            onSelectUsina={handleSelectUsina}
+            onSelectCategory={handleSelectCategory}
+            activeCategory={statusCategory}
+          />
 
-        {/* Filters Controls */}
-        <FiltersBar
-          usinas={usinas}
-          summaries={summaries}
-          filter={filter}
-          onFilterChange={handleFilterChange}
-          onApplyFilters={handleApplyFilters}
-          onResetFilters={handleResetFilters}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSelectUsina={handleSelectUsina}
-          isLoading={isLoading}
-          lastCollectionTime={lastCollectionTime}
-          onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
-        />
+          {/* Filters Controls */}
+          <FiltersBar
+            usinas={usinas}
+            summaries={summaries}
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={handleApplyFilters}
+            onResetFilters={handleResetFilters}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSelectUsina={handleSelectUsina}
+            isLoading={isLoading}
+            lastCollectionTime={lastCollectionTime}
+            onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
+          />
 
-        {/* Selected Usina Focal Detail Card */}
-        <SelectedUsinaDetailCard
-          summary={focalUsinaSummary}
-          onEditContract={handleOpenEditContract}
-          startTime={filter.startTime}
-          endTime={filter.endTime}
-        />
+          {/* Selected Usina Focal Detail Card */}
+          <SelectedUsinaDetailCard
+            summary={focalUsinaSummary}
+            onEditContract={handleOpenEditContract}
+            startTime={filter.startTime}
+            endTime={filter.endTime}
+          />
 
-        {/* Full Table of All Plants */}
-        <UsinasTable
-          summaries={summaries}
-          selectedUsinaId={filter.usinaId}
-          onSelectUsina={handleSelectUsina}
-          onEditContract={handleOpenEditContract}
-          searchQuery={searchQuery}
-          statusCategory={statusCategory}
-          onSelectCategory={handleSelectCategory}
-          onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
-          onExportCsv={handleExportCsv}
-        />
-      </main>
+          {/* Full Table of All Plants */}
+          <UsinasTable
+            summaries={summaries}
+            selectedUsinaId={filter.usinaId}
+            onSelectUsina={handleSelectUsina}
+            onEditContract={handleOpenEditContract}
+            searchQuery={searchQuery}
+            statusCategory={statusCategory}
+            onSelectCategory={handleSelectCategory}
+            onOpenWhatsApp={() => setIsWhatsAppModalOpen(true)}
+            onExportCsv={handleExportCsv}
+          />
+        </main>
+      </ErrorBoundary>
 
-      {/* Modals */}
-      <EditContractModal
-        isOpen={editModal.isOpen}
-        usinaId={editModal.usinaId}
-        usinaName={editModal.usinaName}
-        currentValueKw={editModal.currentVal}
-        onClose={() => setEditModal({ isOpen: false, usinaId: null, usinaName: '', currentVal: 0 })}
-        onSave={handleSaveContractedDemand}
-      />
+      {/* Modals Container */}
+      <div id="modals-slot">
+        {editModal.isOpen ? (
+          <React.Fragment key={`modal-edit-${editModal.usinaId || 'plant'}`}>
+            <EditContractModal
+              isOpen={editModal.isOpen}
+              usinaId={editModal.usinaId}
+              usinaName={editModal.usinaName}
+              currentValueKw={editModal.currentVal}
+              onClose={() => setEditModal({ isOpen: false, usinaId: null, usinaName: '', currentVal: 0 })}
+              onSave={handleSaveContractedDemand}
+            />
+          </React.Fragment>
+        ) : null}
 
-      <ApiConfigModal
-        isOpen={isApiModalOpen}
-        apiToken={apiToken}
-        onClose={() => setIsApiModalOpen(false)}
-        onSaveToken={handleSaveToken}
-      />
+        {isApiModalOpen ? (
+          <React.Fragment key="modal-api-config">
+            <ApiConfigModal
+              isOpen={isApiModalOpen}
+              apiToken={apiToken}
+              onClose={() => setIsApiModalOpen(false)}
+              onSaveToken={handleSaveToken}
+            />
+          </React.Fragment>
+        ) : null}
 
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        summaries={summaries}
-        periodLabel={filter.selectedMonth ? `Mês de Referência ${filter.selectedMonth}` : 'Coleta Única Diária'}
-        startTime={filter.startTime}
-        endTime={filter.endTime}
-        lastCollectionTime={lastCollectionTime}
-      />
+        {isWhatsAppModalOpen ? (
+          <React.Fragment key="modal-whatsapp-share">
+            <WhatsAppShareModal
+              isOpen={isWhatsAppModalOpen}
+              onClose={() => setIsWhatsAppModalOpen(false)}
+              summaries={summaries}
+              periodLabel={filter.selectedMonth ? `Mês de Referência ${filter.selectedMonth}` : 'Coleta Única Diária'}
+              startTime={filter.startTime}
+              endTime={filter.endTime}
+              lastCollectionTime={lastCollectionTime}
+            />
+          </React.Fragment>
+        ) : null}
+      </div>
     </div>
   );
 }

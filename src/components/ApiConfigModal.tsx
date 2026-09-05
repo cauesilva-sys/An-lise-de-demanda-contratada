@@ -252,13 +252,13 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({
                 </button>
               </div>
 
-              {DELFOS_ENDPOINTS.map((ep, idx) => {
+              {DELFOS_ENDPOINTS.map((ep) => {
                 const status = endpointStatuses[ep.path];
                 const isSelected = selectedEndpoint.path === ep.path;
 
                 return (
                   <button
-                    key={idx}
+                    key={ep.path}
                     onClick={() => {
                       setSelectedEndpoint(ep);
                       runEndpointTest(ep);
@@ -319,16 +319,16 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({
 
               <div className="flex-1 min-h-0 overflow-y-auto mt-2 font-mono text-[11px] text-emerald-300 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
                 {isTesting ? (
-                  <div className="flex items-center gap-2 text-slate-400 py-4 justify-center">
+                  <div key="status-testing" className="flex items-center gap-2 text-slate-400 py-4 justify-center">
                     <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
                     <span>Requisitando dados da API Delfos...</span>
                   </div>
                 ) : responseJson ? (
-                  <pre className="whitespace-pre-wrap break-all leading-relaxed">
+                  <pre key="status-response" className="whitespace-pre-wrap break-all leading-relaxed">
                     {JSON.stringify(responseJson, null, 2)}
                   </pre>
                 ) : (
-                  <div className="text-slate-500 italic text-center py-4">
+                  <div key="status-empty" className="text-slate-500 italic text-center py-4">
                     Clique em um endpoint ao lado para testar e inspecionar a resposta em tempo real.
                   </div>
                 )}
