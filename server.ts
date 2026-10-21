@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_USINAS, generateUsinaTelemetrySummary, generate7MinSampleSeries, processRealTimeseriesArray, generate288DailySamplePoints } from './src/data/mockUsinas';
 import { DELFOS_SOLAR_FIELDS, findDelfosDeviceIdByName } from './src/data/delfosDevicesMap';
@@ -22,6 +23,46 @@ async function startServer() {
       success: true,
       data: usinasList,
     });
+  });
+
+  // API Route: Proxy / Fetch Google Sheets CSV or local CSV
+  app.get('/api/fetch-sheet', async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url || url === 'default' || url.startsWith('/data/')) {
+        const filePath = path.join(process.cwd(), 'public', 'data', 'usinas_demanda_mensal.csv');
+        if (fs.existsSync(filePath)) {
+          const csvData = fs.readFileSync(filePath, 'utf-8');
+          return res.setHeader('Content-Type', 'text/csv').send(csvData);
+        }
+      }
+
+      // If user supplied a Google Sheets URL
+      let targetUrl = url;
+      if (targetUrl.includes('docs.google.com/spreadsheets')) {
+        // Transform edit link to export CSV if necessary
+        if (!targetUrl.includes('output=csv') && !targetUrl.includes('format=csv')) {
+          targetUrl = targetUrl.replace(/\/edit(#.*)?$/, '/export?format=csv');
+        }
+      }
+
+      const response = await fetch(targetUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      }
+      const text = await response.text();
+      res.setHeader('Content-Type', 'text/csv').send(text);
+    } catch (err: any) {
+      console.error('Error fetching sheet:', err);
+      // Fallback to local default file
+      try {
+        const filePath = path.join(process.cwd(), 'public', 'data', 'usinas_demanda_mensal.csv');
+        const csvData = fs.readFileSync(filePath, 'utf-8');
+        res.setHeader('Content-Type', 'text/csv').send(csvData);
+      } catch (fallbackErr) {
+        res.status(500).json({ error: 'Failed to fetch sheet data' });
+      }
+    }
   });
 
   // Proxy helper function to Delfos API
