@@ -3,16 +3,26 @@ import { UsinaMonthlyRecord } from '../types/demand';
 import { formatKw } from '../utils/demandParser';
 import { Search, ChevronDown, ChevronLeft, ChevronRight, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
 
+import { PeriodFilterMode } from '../types/demand';
+
 interface PlantSelectorProps {
   usinas: UsinaMonthlyRecord[];
   selectedUsinaId: string;
   onSelectUsina: (usinaId: string) => void;
+  activeFilter?: PeriodFilterMode;
+  onClearFilter?: () => void;
+  periodLabel?: string;
+  totalOriginalCount?: number;
 }
 
 export const PlantSelector: React.FC<PlantSelectorProps> = ({
   usinas,
   selectedUsinaId,
   onSelectUsina,
+  activeFilter = 'all',
+  onClearFilter,
+  periodLabel,
+  totalOriginalCount,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -82,7 +92,38 @@ export const PlantSelector: React.FC<PlantSelectorProps> = ({
   if (!selectedUsina) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
+    <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-2">
+      {/* Active Filter Indicator banner if filter is active */}
+      {activeFilter !== 'all' && (
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                activeFilter === 'over_3' ? 'bg-red-500' : 'bg-amber-500'
+              }`}
+            />
+            <span className="text-slate-700 font-medium">
+              Lista filtrada ({periodLabel || 'Mês selecionado'}):{' '}
+              <strong className={activeFilter === 'over_3' ? 'text-red-700' : 'text-amber-800'}>
+                {usinas.length} {usinas.length === 1 ? 'usina' : 'usinas'}
+              </strong>{' '}
+              {activeFilter === 'over_3' ? 'com superação > +3%' : 'com subutilização < 5%'}{' '}
+              {totalOriginalCount ? `(de ${totalOriginalCount} total)` : ''}
+            </span>
+          </div>
+
+          {onClearFilter && (
+            <button
+              type="button"
+              onClick={onClearFilter}
+              className="text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer text-xs"
+            >
+              Mostrar todas
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Label & Searchable Dropdown */}
         <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -235,7 +276,7 @@ export const PlantSelector: React.FC<PlantSelectorProps> = ({
             <span className="hidden sm:inline">Anterior</span>
           </button>
           <span className="text-xs font-mono text-slate-500 px-1">
-            {currentIndex + 1} / {usinas.length}
+            {currentIndex + 1} / {usinas.length} {activeFilter !== 'all' ? '(filtradas)' : ''}
           </span>
           <button
             type="button"

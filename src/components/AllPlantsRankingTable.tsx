@@ -3,10 +3,15 @@ import { UsinaMonthlyRecord } from '../types/demand';
 import { formatKw } from '../utils/demandParser';
 import { Search, ArrowUpDown, ShieldAlert, ShieldCheck, Eye, Layers } from 'lucide-react';
 
+import { PeriodFilterMode } from '../types/demand';
+
 interface AllPlantsRankingTableProps {
   usinas: UsinaMonthlyRecord[];
   selectedUsinaId: string;
   onSelectUsina: (usinaId: string) => void;
+  activeFilter?: PeriodFilterMode;
+  periodLabel?: string;
+  onClearFilter?: () => void;
 }
 
 type SortField = 'name' | 'contracted' | 'tolerance' | 'highestPeak' | 'utilization' | 'exceededCount';
@@ -16,6 +21,9 @@ export const AllPlantsRankingTable: React.FC<AllPlantsRankingTableProps> = ({
   usinas,
   selectedUsinaId,
   onSelectUsina,
+  activeFilter = 'all',
+  periodLabel,
+  onClearFilter,
 }) => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'EXCEEDED' | 'OK'>('ALL');
@@ -93,13 +101,33 @@ export const AllPlantsRankingTable: React.FC<AllPlantsRankingTableProps> = ({
       <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-600" />
+            <Layers className={`w-4 h-4 ${activeFilter === 'over_3' ? 'text-red-600' : activeFilter === 'under_5' ? 'text-amber-600' : 'text-blue-600'}`} />
             <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-              Visão Geral de Todas as Usinas ({usinas.length})
+              {activeFilter === 'over_3'
+                ? `Usinas com Superação > +3% em ${periodLabel || 'Mês Selecionado'} (${usinas.length})`
+                : activeFilter === 'under_5'
+                ? `Usinas com Subutilização < 5% em ${periodLabel || 'Mês Selecionado'} (${usinas.length})`
+                : `Visão Geral de Todas as Usinas (${usinas.length})`}
             </h3>
+            {activeFilter !== 'all' && (
+              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${activeFilter === 'over_3' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+                Filtro Ativo
+              </span>
+            )}
+            {activeFilter !== 'all' && onClearFilter && (
+              <button
+                type="button"
+                onClick={onClearFilter}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold underline cursor-pointer ml-1"
+              >
+                Limpar filtro
+              </button>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Clique em qualquer linha da tabela para visualizar o gráfico combinado e cards de resumo.
+            {activeFilter !== 'all'
+              ? `Mostrando apenas as usinas correspondentes ao critério de corte no período ${periodLabel || ''}. Clique em qualquer linha para abrir o gráfico.`
+              : 'Clique em qualquer linha da tabela para visualizar o gráfico combinado e cards de resumo.'}
           </p>
         </div>
 

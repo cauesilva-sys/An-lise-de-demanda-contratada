@@ -206,6 +206,8 @@ function parseMatrixMonthlyFormat(
 
     // Regra 3: Limite Regulatório de +3% deve ser sempre: demandaContratada * 1.03
     const toleranceLimit = Math.round(contractedDemand * 1.03 * 100) / 100;
+    // Limite de Subutilização de 5%: demandaContratada * 0.05
+    const threshold5Pct = Math.round(contractedDemand * 0.05 * 100) / 100;
 
     // Build map for each month 1..12
     const monthValues: { [m: number]: number | null } = {};
@@ -235,6 +237,7 @@ function parseMatrixMonthlyFormat(
     for (let m = 1; m <= 12; m++) {
       const power = monthValues[m];
       const isExceeded = power !== null && toleranceLimit > 0 && power > toleranceLimit;
+      const isUnderutilized = power === null || (threshold5Pct > 0 && power < threshold5Pct);
       const excess = isExceeded && power !== null ? Math.round((power - toleranceLimit) * 100) / 100 : 0;
       const pct = power !== null && contractedDemand > 0 ? Math.round((power / contractedDemand) * 1000) / 10 : 0;
 
@@ -258,19 +261,38 @@ function parseMatrixMonthlyFormat(
         monthName: MONTH_NAMES[m].full,
         monthShort: MONTH_NAMES[m].short,
         powerKw: power,
+        rawPowerKw: power,
         contractedDemandKw: contractedDemand,
         toleranceLimitKw: toleranceLimit,
+        threshold5PctKw: threshold5Pct,
         isExceeded,
+        isUnderutilized,
         excessKw: excess,
         percentageOfContracted: pct,
       });
     }
 
+    // Determine default operational responsible
+    let responsible = 'Operação O&M Central';
+    if (rawName.includes('Sul') || rawName.includes('Alegrete') || rawName.includes('Uruguaiana') || rawName.includes('Borja') || rawName.includes('Quarai') || rawName.includes('Cedro')) {
+      responsible = 'Regional Sul (RS/SC)';
+    } else if (rawName.includes('Minas') || rawName.includes('Ibiá') || rawName.includes('Guarda Mor') || rawName.includes('Frutal') || rawName.includes('Buritizeiro') || rawName.includes('Araçuaí')) {
+      responsible = 'Regional Sudeste (MG)';
+    } else if (rawName.includes('Pirapora') || rawName.includes('Taubaté') || rawName.includes('Andradina') || rawName.includes('Guarantã') || rawName.includes('Barretos') || rawName.includes('Macaubal')) {
+      responsible = 'Regional Sudeste (SP)';
+    } else if (rawName.includes('Niquelândia') || rawName.includes('Goiás') || rawName.includes('Tapera')) {
+      responsible = 'Regional Centro-Oeste (GO)';
+    } else if (rawName.includes('Lapa') || rawName.includes('Brejinhos') || rawName.includes('Apodi') || rawName.includes('Peixe') || rawName.includes('Bahia')) {
+      responsible = 'Regional Nordeste (BA/RN/PB)';
+    }
+
     usinas.push({
       id: `usina-${i}-${rawName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
       name: rawName,
+      responsible,
       contractedDemandKw: contractedDemand,
       toleranceLimitKw: toleranceLimit,
+      threshold5PctKw: threshold5Pct,
       months: monthPoints,
       highestPeakKw: highestPeak,
       highestPeakMonth: highestMonth,
@@ -377,9 +399,12 @@ function parseTimeseriesLogFormat(
     let sumActive = 0;
     let countActive = 0;
 
+    const threshold5Pct = Math.round(contractedDemand * 0.05 * 100) / 100;
+
     for (let m = 1; m <= 12; m++) {
       const power = data.months[m] || null;
       const isExceeded = power !== null && toleranceLimit > 0 && power > toleranceLimit;
+      const isUnderutilized = power === null || (threshold5Pct > 0 && power < threshold5Pct);
       const excess = isExceeded && power !== null ? Math.round((power - toleranceLimit) * 100) / 100 : 0;
       const pct = power !== null && contractedDemand > 0 ? Math.round((power / contractedDemand) * 1000) / 10 : 0;
 
@@ -403,19 +428,37 @@ function parseTimeseriesLogFormat(
         monthName: MONTH_NAMES[m].full,
         monthShort: MONTH_NAMES[m].short,
         powerKw: power,
+        rawPowerKw: power,
         contractedDemandKw: contractedDemand,
         toleranceLimitKw: toleranceLimit,
+        threshold5PctKw: threshold5Pct,
         isExceeded,
+        isUnderutilized,
         excessKw: excess,
         percentageOfContracted: pct,
       });
     }
 
+    let responsible = 'Operação O&M Central';
+    if (name.includes('Sul') || name.includes('Alegrete') || name.includes('Uruguaiana') || name.includes('Borja') || name.includes('Quarai') || name.includes('Cedro')) {
+      responsible = 'Regional Sul (RS/SC)';
+    } else if (name.includes('Minas') || name.includes('Ibiá') || name.includes('Guarda Mor') || name.includes('Frutal') || name.includes('Buritizeiro') || name.includes('Araçuaí')) {
+      responsible = 'Regional Sudeste (MG)';
+    } else if (name.includes('Pirapora') || name.includes('Taubaté') || name.includes('Andradina') || name.includes('Guarantã') || name.includes('Barretos') || name.includes('Macaubal')) {
+      responsible = 'Regional Sudeste (SP)';
+    } else if (name.includes('Niquelândia') || name.includes('Goiás') || name.includes('Tapera')) {
+      responsible = 'Regional Centro-Oeste (GO)';
+    } else if (name.includes('Lapa') || name.includes('Brejinhos') || name.includes('Apodi') || name.includes('Peixe') || name.includes('Bahia')) {
+      responsible = 'Regional Nordeste (BA/RN/PB)';
+    }
+
     usinas.push({
       id: `usina-${i}-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
       name,
+      responsible,
       contractedDemandKw: contractedDemand,
       toleranceLimitKw: toleranceLimit,
+      threshold5PctKw: threshold5Pct,
       months: monthPoints,
       highestPeakKw: highestPeak,
       highestPeakMonth: highestMonth,
@@ -459,6 +502,12 @@ function buildFinalResult(
     }
   }
 
+  const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => ({
+    monthIndex: m,
+    monthName: MONTH_NAMES[m].full,
+    monthShort: MONTH_NAMES[m].short,
+  }));
+
   return {
     usinas,
     usinasCount: usinas.length,
@@ -468,10 +517,18 @@ function buildFinalResult(
     detectedFormat: format,
     lastFetchedAt: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     sourceUrl,
+    availableYears: [2026],
+    availableMonths,
   };
 }
 
 function createEmptyResult(sourceUrl: string): SheetParseResult {
+  const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => ({
+    monthIndex: m,
+    monthName: MONTH_NAMES[m].full,
+    monthShort: MONTH_NAMES[m].short,
+  }));
+
   return {
     usinas: [],
     usinasCount: 0,
@@ -481,6 +538,8 @@ function createEmptyResult(sourceUrl: string): SheetParseResult {
     detectedFormat: 'matrix_monthly',
     lastFetchedAt: new Date().toLocaleTimeString('pt-BR'),
     sourceUrl,
+    availableYears: [2026],
+    availableMonths,
   };
 }
 
