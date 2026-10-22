@@ -1,4 +1,4 @@
-import { MonthDataPoint, UsinaMonthlyRecord, SheetParseResult } from '../types/demand';
+import { MonthDataPoint, UsinaMonthlyRecord, SheetParseResult, YearlyPlantStats } from '../types/demand';
 import { getDemandaFixa } from '../data/demandasFixas';
 
 export const MONTH_NAMES: { [key: number]: { full: string; short: string } } = {
@@ -142,22 +142,57 @@ function detectDelimiter(headerLine: string): string {
 }
 
 /**
+ * Detect year from text or filename
+ */
+export function detectYearFromContent(text: string, sourceUrl = '', fallback = 2025): number {
+  const yearMatch = text.match(/(?:ano\s*(?:de)?\s*)(\d{4})/i)
+    || sourceUrl.match(/(202[0-9])/i)
+    || text.match(/\b(202[0-9])\b/);
+
+  if (yearMatch && yearMatch[1]) {
+    const yr = parseInt(yearMatch[1], 10);
+    if (yr >= 2020 && yr <= 2035) return yr;
+  }
+  return fallback;
+}
+
+/**
  * Parse CSV Data supporting both:
  * 1. Sheet Matrix Format: Col A: Usina, Col B: Demanda Contratada, Col C..N: Meses (Janeiro a Dezembro)
  * 2. Log / Timeseries Format: Data, Usina, Potência Pico, Horário, Demanda Contratada, Status
  */
-export function parseSheetCsv(csvContent: string, sourceUrl = ''): SheetParseResult {
+export function parseSheetCsv(csvContent: string, sourceUrl = '', overrideYear?: number): SheetParseResult {
   if (!csvContent || typeof csvContent !== 'string') {
-    return createEmptyResult(sourceUrl);
+    return createEmptyResult(sourceUrl, overrideYear || 2025);
   }
 
   const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) {
-    return createEmptyResult(sourceUrl);
+    return createEmptyResult(sourceUrl, overrideYear || 2025);
   }
 
-  const delimiter = detectDelimiter(lines[0]);
-  const headerCols = parseCsvLine(lines[0], delimiter);
+  // Scan up to 10 rows to locate actual header row (some sheets have title rows before header)
+  let headerIndex = 0;
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const low = lines[i].toLowerCase();
+    if (
+      low.includes('usina') &&
+      (low.includes('demanda') || low.includes('jan') || low.includes('fev') || low.includes('mar'))
+    ) {
+      headerIndex = i;
+      break;
+    }
+  }
+
+  // Detect year
+  let detectedYear = overrideYear || 2025;
+  if (!overrideYear) {
+    const preHeaderLines = lines.slice(0, headerIndex + 1).join('\n');
+    detectedYear = detectYearFromContent(preHeaderLines, sourceUrl, 2025);
+  }
+
+  const delimiter = detectDelimiter(lines[headerIndex]);
+  const headerCols = parseCsvLine(lines[headerIndex], delimiter);
 
   // Check if header contains month names in columns C..N
   const monthColIndices: { colIdx: number; monthIdx: number }[] = [];
@@ -171,9 +206,9 @@ export function parseSheetCsv(csvContent: string, sourceUrl = ''): SheetParseRes
   const isMatrixFormat = monthColIndices.length >= 3;
 
   if (isMatrixFormat) {
-    return parseMatrixMonthlyFormat(lines, delimiter, monthColIndices, sourceUrl);
+    return parseMatrixMonthlyFormat(lines.slice(headerIndex), delimiter, monthColIndices, sourceUrl, detectedYear);
   } else {
-    return parseTimeseriesLogFormat(lines, delimiter, sourceUrl);
+    return parseTimeseriesLogFormat(lines.slice(headerIndex), delimiter, sourceUrl, detectedYear);
   }
 }
 
@@ -184,7 +219,8 @@ function parseMatrixMonthlyFormat(
   lines: string[],
   delimiter: string,
   monthColIndices: { colIdx: number; monthIdx: number }[],
-  sourceUrl: string
+  sourceUrl: string,
+  detectedYear: number
 ): SheetParseResult {
   const usinas: UsinaMonthlyRecord[] = [];
 
@@ -257,6 +293,7 @@ function parseMatrixMonthlyFormat(
       }
 
       monthPoints.push({
+        year: detectedYear,
         monthIndex: m,
         monthName: MONTH_NAMES[m].full,
         monthShort: MONTH_NAMES[m].short,
@@ -274,17 +311,56 @@ function parseMatrixMonthlyFormat(
 
     // Determine default operational responsible
     let responsible = 'Operação O&M Central';
-    if (rawName.includes('Sul') || rawName.includes('Alegrete') || rawName.includes('Uruguaiana') || rawName.includes('Borja') || rawName.includes('Quarai') || rawName.includes('Cedro')) {
+    if (
+      rawName.includes('Sul') ||
+      rawName.includes('Alegrete') ||
+      rawName.includes('Uruguaiana') ||
+      rawName.includes('Borja') ||
+      rawName.includes('Quarai') ||
+      rawName.includes('Cedro')
+    ) {
       responsible = 'Regional Sul (RS/SC)';
-    } else if (rawName.includes('Minas') || rawName.includes('Ibiá') || rawName.includes('Guarda Mor') || rawName.includes('Frutal') || rawName.includes('Buritizeiro') || rawName.includes('Araçuaí')) {
+    } else if (
+      rawName.includes('Minas') ||
+      rawName.includes('Ibiá') ||
+      rawName.includes('Guarda Mor') ||
+      rawName.includes('Frutal') ||
+      rawName.includes('Buritizeiro') ||
+      rawName.includes('Araçuaí')
+    ) {
       responsible = 'Regional Sudeste (MG)';
-    } else if (rawName.includes('Pirapora') || rawName.includes('Taubaté') || rawName.includes('Andradina') || rawName.includes('Guarantã') || rawName.includes('Barretos') || rawName.includes('Macaubal')) {
+    } else if (
+      rawName.includes('Pirapora') ||
+      rawName.includes('Taubaté') ||
+      rawName.includes('Andradina') ||
+      rawName.includes('Guarantã') ||
+      rawName.includes('Barretos') ||
+      rawName.includes('Macaubal')
+    ) {
       responsible = 'Regional Sudeste (SP)';
     } else if (rawName.includes('Niquelândia') || rawName.includes('Goiás') || rawName.includes('Tapera')) {
       responsible = 'Regional Centro-Oeste (GO)';
-    } else if (rawName.includes('Lapa') || rawName.includes('Brejinhos') || rawName.includes('Apodi') || rawName.includes('Peixe') || rawName.includes('Bahia')) {
+    } else if (
+      rawName.includes('Lapa') ||
+      rawName.includes('Brejinhos') ||
+      rawName.includes('Apodi') ||
+      rawName.includes('Peixe') ||
+      rawName.includes('Bahia')
+    ) {
       responsible = 'Regional Nordeste (BA/RN/PB)';
     }
+
+    const yearlyStats: Record<number, YearlyPlantStats> = {
+      [detectedYear]: {
+        highestPeakKw: highestPeak,
+        highestPeakMonth: highestMonth,
+        highestPeakMonthIndex: highestMonthIdx,
+        activeMonthsCount: countActive,
+        exceededMonthsCount: exceededCount,
+        averagePowerKw: countActive > 0 ? Math.round((sumActive / countActive) * 100) / 100 : 0,
+        isExceededAnyMonth: exceededCount > 0,
+      },
+    };
 
     usinas.push({
       id: `usina-${i}-${rawName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
@@ -294,9 +370,12 @@ function parseMatrixMonthlyFormat(
       toleranceLimitKw: toleranceLimit,
       threshold5PctKw: threshold5Pct,
       months: monthPoints,
+      availableYears: [detectedYear],
+      yearlyStats,
       highestPeakKw: highestPeak,
       highestPeakMonth: highestMonth,
       highestPeakMonthIndex: highestMonthIdx,
+      highestPeakYear: detectedYear,
       isExceededAnyMonth: exceededCount > 0,
       exceededMonthsCount: exceededCount,
       activeMonthsCount: countActive,
@@ -307,7 +386,7 @@ function parseMatrixMonthlyFormat(
   // Sort plants alphabetically
   usinas.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  return buildFinalResult(usinas, 'matrix_monthly', sourceUrl);
+  return buildFinalResult(usinas, 'matrix_monthly', sourceUrl, [detectedYear]);
 }
 
 /**
@@ -316,12 +395,14 @@ function parseMatrixMonthlyFormat(
 function parseTimeseriesLogFormat(
   lines: string[],
   delimiter: string,
-  sourceUrl: string
+  sourceUrl: string,
+  detectedYear: number
 ): SheetParseResult {
   const tempMap: {
     [plantName: string]: {
       contracted: number;
       months: { [month: number]: number };
+      years: Set<number>;
     };
   } = {};
 
@@ -330,7 +411,7 @@ function parseTimeseriesLogFormat(
     if (cols.length < 3) continue;
 
     const dateStr = cols[0];
-    let plantName = (cols[1] || '')
+    const plantName = (cols[1] || '')
       .replace(/^"+|"+$/g, '')
       .replace(/: Active Power$/i, '')
       .trim();
@@ -344,17 +425,27 @@ function parseTimeseriesLogFormat(
     const fallbackDemand = cols.length >= 5 ? parseContractedDemand(cols[4]) : 0;
     const contracted = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : fallbackDemand;
 
-    // Extract month from date
+    // Extract month and year from date
     let month: number | null = null;
+    let rowYear = detectedYear;
+
     if (dateStr.includes('/')) {
       const parts = dateStr.split('/');
       if (parts.length >= 2) {
         month = parseInt(parts[1], 10);
       }
+      if (parts.length >= 3) {
+        const y = parseInt(parts[2].slice(0, 4), 10);
+        if (y >= 2020 && y <= 2035) rowYear = y;
+      }
     } else if (dateStr.includes('-')) {
       const parts = dateStr.split('-');
       if (parts.length >= 2) {
         month = parseInt(parts[1], 10);
+      }
+      if (parts.length >= 1) {
+        const y = parseInt(parts[0], 10);
+        if (y >= 2020 && y <= 2035) rowYear = y;
       }
     }
 
@@ -364,8 +455,11 @@ function parseTimeseriesLogFormat(
       tempMap[plantName] = {
         contracted: contracted || 0,
         months: {},
+        years: new Set<number>(),
       };
     }
+
+    tempMap[plantName].years.add(rowYear);
 
     if (contracted > 0 && (tempMap[plantName].contracted === 0 || contracted > tempMap[plantName].contracted)) {
       tempMap[plantName].contracted = contracted;
@@ -424,6 +518,7 @@ function parseTimeseriesLogFormat(
       }
 
       monthPoints.push({
+        year: detectedYear,
         monthIndex: m,
         monthName: MONTH_NAMES[m].full,
         monthShort: MONTH_NAMES[m].short,
@@ -440,17 +535,56 @@ function parseTimeseriesLogFormat(
     }
 
     let responsible = 'Operação O&M Central';
-    if (name.includes('Sul') || name.includes('Alegrete') || name.includes('Uruguaiana') || name.includes('Borja') || name.includes('Quarai') || name.includes('Cedro')) {
+    if (
+      name.includes('Sul') ||
+      name.includes('Alegrete') ||
+      name.includes('Uruguaiana') ||
+      name.includes('Borja') ||
+      name.includes('Quarai') ||
+      name.includes('Cedro')
+    ) {
       responsible = 'Regional Sul (RS/SC)';
-    } else if (name.includes('Minas') || name.includes('Ibiá') || name.includes('Guarda Mor') || name.includes('Frutal') || name.includes('Buritizeiro') || name.includes('Araçuaí')) {
+    } else if (
+      name.includes('Minas') ||
+      name.includes('Ibiá') ||
+      name.includes('Guarda Mor') ||
+      name.includes('Frutal') ||
+      name.includes('Buritizeiro') ||
+      name.includes('Araçuaí')
+    ) {
       responsible = 'Regional Sudeste (MG)';
-    } else if (name.includes('Pirapora') || name.includes('Taubaté') || name.includes('Andradina') || name.includes('Guarantã') || name.includes('Barretos') || name.includes('Macaubal')) {
+    } else if (
+      name.includes('Pirapora') ||
+      name.includes('Taubaté') ||
+      name.includes('Andradina') ||
+      name.includes('Guarantã') ||
+      name.includes('Barretos') ||
+      name.includes('Macaubal')
+    ) {
       responsible = 'Regional Sudeste (SP)';
     } else if (name.includes('Niquelândia') || name.includes('Goiás') || name.includes('Tapera')) {
       responsible = 'Regional Centro-Oeste (GO)';
-    } else if (name.includes('Lapa') || name.includes('Brejinhos') || name.includes('Apodi') || name.includes('Peixe') || name.includes('Bahia')) {
+    } else if (
+      name.includes('Lapa') ||
+      name.includes('Brejinhos') ||
+      name.includes('Apodi') ||
+      name.includes('Peixe') ||
+      name.includes('Bahia')
+    ) {
       responsible = 'Regional Nordeste (BA/RN/PB)';
     }
+
+    const yearlyStats: Record<number, YearlyPlantStats> = {
+      [detectedYear]: {
+        highestPeakKw: highestPeak,
+        highestPeakMonth: highestMonth,
+        highestPeakMonthIndex: highestMonthIdx,
+        activeMonthsCount: countActive,
+        exceededMonthsCount: exceededCount,
+        averagePowerKw: countActive > 0 ? Math.round((sumActive / countActive) * 100) / 100 : 0,
+        isExceededAnyMonth: exceededCount > 0,
+      },
+    };
 
     usinas.push({
       id: `usina-${i}-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
@@ -460,9 +594,12 @@ function parseTimeseriesLogFormat(
       toleranceLimitKw: toleranceLimit,
       threshold5PctKw: threshold5Pct,
       months: monthPoints,
+      availableYears: [detectedYear],
+      yearlyStats,
       highestPeakKw: highestPeak,
       highestPeakMonth: highestMonth,
       highestPeakMonthIndex: highestMonthIdx,
+      highestPeakYear: detectedYear,
       isExceededAnyMonth: exceededCount > 0,
       exceededMonthsCount: exceededCount,
       activeMonthsCount: countActive,
@@ -470,13 +607,197 @@ function parseTimeseriesLogFormat(
     });
   }
 
-  return buildFinalResult(usinas, 'timeseries_log', sourceUrl);
+  return buildFinalResult(usinas, 'timeseries_log', sourceUrl, [detectedYear]);
+}
+
+/**
+ * Merge multiple SheetParseResults (e.g. 2024 and 2025) into a unified dataset
+ */
+export function mergeSheetResults(results: SheetParseResult[]): SheetParseResult {
+  const validResults = results.filter((r) => r && r.usinas && r.usinas.length > 0);
+  if (validResults.length === 0) return createEmptyResult('', 2025);
+  if (validResults.length === 1) return validResults[0];
+
+  const plantMap = new Map<string, UsinaMonthlyRecord>();
+  const allYearsSet = new Set<number>();
+
+  for (const res of validResults) {
+    for (const yr of res.availableYears) {
+      allYearsSet.add(yr);
+    }
+
+    for (const u of res.usinas) {
+      const normKey = u.name.trim().toLowerCase();
+      const existing = plantMap.get(normKey);
+
+      if (!existing) {
+        // Clone record
+        const cloned: UsinaMonthlyRecord = {
+          ...u,
+          months: [...u.months],
+          yearlyStats: { ...(u.yearlyStats || {}) },
+          availableYears: [...(u.availableYears || [u.months[0]?.year || 2025])],
+        };
+        plantMap.set(normKey, cloned);
+      } else {
+        // Merge months, replacing or adding each month
+        for (const m of u.months) {
+          const idx = existing.months.findIndex(
+            (em) => em.year === m.year && em.monthIndex === m.monthIndex
+          );
+          if (idx >= 0) {
+            existing.months[idx] = m;
+          } else {
+            existing.months.push(m);
+          }
+        }
+
+        // Merge yearly stats
+        existing.yearlyStats = {
+          ...(existing.yearlyStats || {}),
+          ...(u.yearlyStats || {}),
+        };
+
+        // Merge available years
+        const yearsSet = new Set([...(existing.availableYears || []), ...(u.availableYears || [])]);
+        existing.availableYears = Array.from(yearsSet).sort((a, b) => a - b);
+      }
+    }
+  }
+
+  const mergedUsinas: UsinaMonthlyRecord[] = [];
+  const allYears = Array.from(allYearsSet).sort((a, b) => a - b);
+
+  for (const u of plantMap.values()) {
+    // Sort months chronologically: year ascending, then monthIndex ascending
+    u.months.sort((a, b) => (a.year !== b.year ? a.year - b.year : a.monthIndex - b.monthIndex));
+
+    // Recompute overall and yearly metrics
+    let highestPeak = 0;
+    let highestMonth = 'Nenhum';
+    let highestMonthIdx = 1;
+    let highestYear = allYears[allYears.length - 1] || 2025;
+    let exceededCount = 0;
+    let sumActive = 0;
+    let countActive = 0;
+
+    const yearlyStats: Record<number, YearlyPlantStats> = {};
+
+    for (const yr of allYears) {
+      const yearMonths = u.months.filter((m) => m.year === yr);
+      let yPeak = 0;
+      let yPeakMonth = 'Nenhum';
+      let yPeakMonthIdx = 1;
+      let yExceeded = 0;
+      let ySum = 0;
+      let yCount = 0;
+
+      for (const m of yearMonths) {
+        if (m.powerKw !== null && m.powerKw > 0) {
+          ySum += m.powerKw;
+          yCount++;
+          if (m.powerKw > yPeak) {
+            yPeak = m.powerKw;
+            yPeakMonth = m.monthName;
+            yPeakMonthIdx = m.monthIndex;
+          }
+        }
+        if (m.isExceeded) {
+          yExceeded++;
+        }
+      }
+
+      yearlyStats[yr] = {
+        highestPeakKw: yPeak,
+        highestPeakMonth: yPeakMonth,
+        highestPeakMonthIndex: yPeakMonthIdx,
+        activeMonthsCount: yCount,
+        exceededMonthsCount: yExceeded,
+        averagePowerKw: yCount > 0 ? Math.round((ySum / yCount) * 100) / 100 : 0,
+        isExceededAnyMonth: yExceeded > 0,
+      };
+    }
+
+    for (const m of u.months) {
+      if (m.powerKw !== null && m.powerKw > 0) {
+        sumActive += m.powerKw;
+        countActive++;
+        if (m.powerKw > highestPeak) {
+          highestPeak = m.powerKw;
+          highestMonth = m.monthName;
+          highestMonthIdx = m.monthIndex;
+          highestYear = m.year;
+        }
+      }
+      if (m.isExceeded) {
+        exceededCount++;
+      }
+    }
+
+    u.highestPeakKw = highestPeak;
+    u.highestPeakMonth = highestMonth;
+    u.highestPeakMonthIndex = highestMonthIdx;
+    u.highestPeakYear = highestYear;
+    u.exceededMonthsCount = exceededCount;
+    u.isExceededAnyMonth = exceededCount > 0;
+    u.activeMonthsCount = countActive;
+    u.averagePowerKw = countActive > 0 ? Math.round((sumActive / countActive) * 100) / 100 : 0;
+    u.yearlyStats = yearlyStats;
+    u.availableYears = allYears;
+
+    mergedUsinas.push(u);
+  }
+
+  // Sort plants alphabetically
+  mergedUsinas.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  let totalExceededPlants = 0;
+  let highestOverall: {
+    usinaName: string;
+    powerKw: number;
+    month: string;
+    contractedDemandKw: number;
+  } | null = null;
+
+  for (const u of mergedUsinas) {
+    if (u.isExceededAnyMonth) totalExceededPlants++;
+    if (u.highestPeakKw > 0) {
+      if (!highestOverall || u.highestPeakKw > highestOverall.powerKw) {
+        highestOverall = {
+          usinaName: u.name,
+          powerKw: u.highestPeakKw,
+          month: `${u.highestPeakMonth}/${u.highestPeakYear}`,
+          contractedDemandKw: u.contractedDemandKw,
+        };
+      }
+    }
+  }
+
+  const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => ({
+    monthIndex: m,
+    monthName: MONTH_NAMES[m].full,
+    monthShort: MONTH_NAMES[m].short,
+  }));
+
+  return {
+    usinas: mergedUsinas,
+    usinasCount: mergedUsinas.length,
+    exceededCount: totalExceededPlants,
+    okCount: mergedUsinas.length - totalExceededPlants,
+    highestOverallPeak: highestOverall,
+    detectedFormat: 'matrix_monthly',
+    lastFetchedAt: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    sourceUrl: validResults.map((r) => r.sourceUrl).filter(Boolean).join(', ') || 'Bases Consolidadas 2024 / 2025',
+    availableYears: allYears.length > 0 ? allYears : [2024, 2025],
+    availableMonths,
+  };
 }
 
 function buildFinalResult(
   usinas: UsinaMonthlyRecord[],
   format: 'matrix_monthly' | 'timeseries_log',
-  sourceUrl: string
+  sourceUrl: string,
+  availableYears: number[] = [2025]
 ): SheetParseResult {
   let exceededCount = 0;
   let highestOverall: {
@@ -495,7 +816,7 @@ function buildFinalResult(
         highestOverall = {
           usinaName: u.name,
           powerKw: u.highestPeakKw,
-          month: u.highestPeakMonth,
+          month: `${u.highestPeakMonth}${u.highestPeakYear ? `/${u.highestPeakYear}` : ''}`,
           contractedDemandKw: u.contractedDemandKw,
         };
       }
@@ -517,12 +838,12 @@ function buildFinalResult(
     detectedFormat: format,
     lastFetchedAt: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     sourceUrl,
-    availableYears: [2026],
+    availableYears,
     availableMonths,
   };
 }
 
-function createEmptyResult(sourceUrl: string): SheetParseResult {
+function createEmptyResult(sourceUrl: string, defaultYear = 2025): SheetParseResult {
   const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => ({
     monthIndex: m,
     monthName: MONTH_NAMES[m].full,
@@ -538,7 +859,7 @@ function createEmptyResult(sourceUrl: string): SheetParseResult {
     detectedFormat: 'matrix_monthly',
     lastFetchedAt: new Date().toLocaleTimeString('pt-BR'),
     sourceUrl,
-    availableYears: [2026],
+    availableYears: [defaultYear],
     availableMonths,
   };
 }

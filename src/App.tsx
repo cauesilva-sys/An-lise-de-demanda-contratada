@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SheetParseResult, UsinaMonthlyRecord, PeriodOption, PeriodFilterMode } from './types/demand';
-import { parseSheetCsv } from './utils/demandParser';
+import { parseSheetCsv, mergeSheetResults } from './utils/demandParser';
 import { exportMonthlyRecordsToCsv } from './utils/exportMonthlyCsv';
 import {
   generatePeriodOptions,
@@ -24,13 +24,15 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { getDemandaFixa } from './data/demandasFixas';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
-const DEFAULT_CSV_URL = '/data/usinas_demanda_mensal.csv';
-const FALLBACK_CSV_URL = '/assets/aistudio/Demanda_pico_por_usina_6c804d9d';
+const CSV_2024_PATH = '/data/usinas_demanda_2024.csv';
+const CSV_2025_PATH = '/data/usinas_demanda_2025.csv';
+const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
+const FALLBACK_2025_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2025_419e411e.csv';
 
 export default function App() {
   const [sheetResult, setSheetResult] = useState<SheetParseResult | null>(null);
   const [selectedUsinaId, setSelectedUsinaId] = useState<string>('');
-  const [currentUrl, setCurrentUrl] = useState<string>(DEFAULT_CSV_URL);
+  const [currentUrl, setCurrentUrl] = useState<string>('Planilhas 2024 & 2025 Consolidadas');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -41,9 +43,9 @@ export default function App() {
   // Filter mode for selected period: 'all' | 'over_3' | 'under_5'
   const [filterMode, setFilterMode] = useState<PeriodFilterMode>('all');
 
-  // Selected period for deviation reporting (defaults to Outubro 2026 or latest with data)
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(10);
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  // Selected period for deviation reporting (default to Dezembro 2025, highest operational coverage)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(12);
+  const [selectedYear, setSelectedYear] = useState<number>(2025);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -53,44 +55,69 @@ export default function App() {
   };
 
   /**
-   * Fetch data locally from CSV file
+   * Fetch data for 2024 and 2025 in parallel and merge into unified dataset
    */
-  const fetchData = useCallback(async (targetUrl?: string) => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const urlToFetch = targetUrl || currentUrl;
 
     try {
-      let csvText = '';
-      const resp = await fetch(`${urlToFetch}?_t=${Date.now()}`);
+      const fetchWithFallback = async (primary: string, fallback: string) => {
+        try {
+          const res = await fetch(`${primary}?_t=${Date.now()}`);
+          if (res.ok) return await res.text();
+        } catch {}
+        try {
+          const res = await fetch(`${fallback}?_t=${Date.now()}`);
+          if (res.ok) return await res.text();
+        } catch {}
+        return '';
+      };
 
-      if (!resp.ok) {
-        // Fallback attempt
-        const fbResp = await fetch(`${FALLBACK_CSV_URL}?_t=${Date.now()}`);
-        if (!fbResp.ok) throw new Error('Não foi possível carregar o arquivo CSV.');
-        csvText = await fbResp.text();
-      } else {
-        csvText = await resp.text();
+      const [text2024, text2025] = await Promise.all([
+        fetchWithFallback(CSV_2024_PATH, FALLBACK_2024_PATH),
+        fetchWithFallback(CSV_2025_PATH, FALLBACK_2025_PATH),
+      ]);
+
+      const parsedResults: SheetParseResult[] = [];
+      if (text2024) {
+        parsedResults.push(parseSheetCsv(text2024, 'Pico_Demanda_2024.csv', 2024));
+      }
+      if (text2025) {
+        parsedResults.push(parseSheetCsv(text2025, 'Pico_Demanda_2025.csv', 2025));
       }
 
-      const parsed = parseSheetCsv(csvText, urlToFetch);
-      if (parsed.usinas.length === 0) {
-        throw new Error('Nenhuma usina encontrada no formato da base de dados.');
+      if (parsedResults.length === 0) {
+        // Fallback attempt with legacy file if neither 2024 nor 2025 loaded
+        const legResp = await fetch(`/data/usinas_demanda_mensal.csv?_t=${Date.now()}`);
+        if (legResp.ok) {
+          const legText = await legResp.text();
+          parsedResults.push(parseSheetCsv(legText, 'usinas_demanda_mensal.csv'));
+        }
       }
 
-      setSheetResult(parsed);
-      setCurrentUrl(urlToFetch);
+      if (parsedResults.length === 0) {
+        throw new Error('Não foi possível carregar as planilhas de demanda de 2024 e 2025.');
+      }
+
+      const merged = mergeSheetResults(parsedResults);
+      if (merged.usinas.length === 0) {
+        throw new Error('Nenhuma usina encontrada no formato das planilhas.');
+      }
+
+      setSheetResult(merged);
+      setCurrentUrl('Planilhas 2024 & 2025 Consolidadas (125 Usinas)');
 
       // Auto-select initial plant
       setSelectedUsinaId((prev) => {
-        if (prev && parsed.usinas.some((u) => u.id === prev)) {
+        if (prev && merged.usinas.some((u) => u.id === prev)) {
           return prev;
         }
-        const firstExceeded = parsed.usinas.find((u) => u.isExceededAnyMonth);
-        return firstExceeded ? firstExceeded.id : parsed.usinas[0].id;
+        const firstExceeded = merged.usinas.find((u) => u.isExceededAnyMonth);
+        return firstExceeded ? firstExceeded.id : merged.usinas[0].id;
       });
 
-      showToast(`Base operacional carregada com sucesso! (${parsed.usinas.length} usinas)`);
+      showToast(`Dados de 2024 e 2025 atualizados com sucesso! (${merged.usinas.length} usinas)`);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err?.message || 'Erro ao carregar dados operacionais.');
@@ -98,7 +125,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUrl]);
+  }, []);
 
   // Load data on page mount
   useEffect(() => {
@@ -116,10 +143,13 @@ export default function App() {
         if (parsed.usinas.length === 0) {
           throw new Error('O arquivo CSV enviado não contém usinas válidas.');
         }
-        setSheetResult(parsed);
-        const firstExceeded = parsed.usinas.find((u) => u.isExceededAnyMonth);
-        setSelectedUsinaId(firstExceeded ? firstExceeded.id : parsed.usinas[0].id);
-        showToast(`Arquivo "${file.name}" carregado (${parsed.usinas.length} usinas).`);
+
+        const merged = sheetResult ? mergeSheetResults([sheetResult, parsed]) : parsed;
+        setSheetResult(merged);
+
+        const firstExceeded = merged.usinas.find((u) => u.isExceededAnyMonth);
+        setSelectedUsinaId(firstExceeded ? firstExceeded.id : merged.usinas[0].id);
+        showToast(`Arquivo "${file.name}" importado e integrado com sucesso (${merged.usinas.length} usinas).`);
       } catch (err: any) {
         setError(err?.message || 'Falha ao processar arquivo CSV.');
         showToast('Erro ao processar arquivo.');
@@ -184,11 +214,11 @@ export default function App() {
     return found;
   }, [sheetResult, selectedUsinaId]);
 
-  // Generate dynamic period options from loaded plants
+  // Generate dynamic period options from loaded plants (both 2025 and 2024)
   const periodOptions: PeriodOption[] = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return [];
-    return generatePeriodOptions(sheetResult.usinas, selectedYear);
-  }, [sheetResult, selectedYear]);
+    return generatePeriodOptions(sheetResult.usinas, sheetResult.availableYears);
+  }, [sheetResult]);
 
   // Current period option
   const currentPeriod = useMemo(() => {
@@ -198,22 +228,19 @@ export default function App() {
     );
   }, [periodOptions, selectedMonthIndex, selectedYear]);
 
-  // Report 1: Over-demand (> 3%) for selected period
+  // Report 1: Over-demand (> 3%) for selected period (year and month)
   const overDemandItems = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return [];
     return getOverDemandReport(sheetResult.usinas, selectedMonthIndex, selectedYear);
   }, [sheetResult, selectedMonthIndex, selectedYear]);
 
-  // Report 2: Under-demand (< 5%) for selected period
+  // Report 2: Under-demand (< 5%) for selected period (year and month)
   const underDemandItems = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return [];
     return getUnderDemandReport(sheetResult.usinas, selectedMonthIndex, selectedYear, true);
   }, [sheetResult, selectedMonthIndex, selectedYear]);
 
-  // Filtered usinas based on active period filter:
-  // When filterMode === 'over_3': only plants that exceeded +3% in selectedMonthIndex
-  // When filterMode === 'under_5': only plants that had power < 5% or 0 in selectedMonthIndex
-  // When filterMode === 'all': all usinas
+  // Filtered usinas based on active period filter (matching both selectedMonthIndex AND selectedYear)
   const displayedUsinas = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return [];
     if (filterMode === 'all') return sheetResult.usinas;
@@ -223,7 +250,7 @@ export default function App() {
         const fixedDemand = getDemandaFixa(u.name);
         const contractedDemand = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : u.contractedDemandKw;
         const toleranceLimit = Math.round(contractedDemand * 1.03 * 100) / 100;
-        const monthData = u.months.find((m) => m.monthIndex === selectedMonthIndex);
+        const monthData = u.months.find((m) => m.monthIndex === selectedMonthIndex && m.year === selectedYear);
         return monthData && monthData.powerKw !== null && monthData.powerKw > toleranceLimit;
       });
     }
@@ -233,14 +260,14 @@ export default function App() {
         const fixedDemand = getDemandaFixa(u.name);
         const contractedDemand = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : u.contractedDemandKw;
         const threshold5Pct = Math.round(contractedDemand * 0.05 * 100) / 100;
-        const monthData = u.months.find((m) => m.monthIndex === selectedMonthIndex);
+        const monthData = u.months.find((m) => m.monthIndex === selectedMonthIndex && m.year === selectedYear);
         const powerKw = monthData?.powerKw ?? null;
         return powerKw === null || powerKw === 0 || (threshold5Pct > 0 && powerKw < threshold5Pct);
       });
     }
 
     return sheetResult.usinas;
-  }, [sheetResult, filterMode, selectedMonthIndex]);
+  }, [sheetResult, filterMode, selectedMonthIndex, selectedYear]);
 
   // Auto-select first usina in filtered list if current selection is not included
   useEffect(() => {
@@ -302,11 +329,11 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
-          {/* Operational Data Bar (clean, no bulky real-time banner) */}
+          {/* Operational Data Bar */}
           <DataSourceToolbar
             sheetResult={sheetResult}
             isLoading={isLoading}
-            onRefresh={(url) => fetchData(url)}
+            onRefresh={() => fetchData()}
             onFileUpload={handleFileUpload}
             onExportCsv={handleExportCsv}
             currentUrl={currentUrl}
@@ -339,7 +366,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => fetchData()}
-                className="px-2.5 py-1 bg-red-100 hover:bg-red-200 rounded font-bold text-red-800 transition-colors"
+                className="px-2.5 py-1 bg-red-100 hover:bg-red-200 rounded font-bold text-red-800 transition-colors cursor-pointer"
               >
                 Tentar Novamente
               </button>
@@ -351,10 +378,10 @@ export default function App() {
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
               <p className="text-sm font-semibold text-slate-600">
-                Processando dados operacionais e calculando limites de demanda...
+                Processando dados operacionais de 2024 e 2025...
               </p>
               <p className="text-xs text-slate-400">
-                Calculando demandas contratadas fixas, margem de +3% e corte de 5%.
+                Calculando demandas contratadas fixas, margem de +3% e corte de 5% por usina, ano e mês.
               </p>
             </div>
           )}
@@ -384,17 +411,27 @@ export default function App() {
                       usina={selectedUsina}
                       totalUsinasCount={displayedUsinas.length}
                       currentUsinaIndex={currentUsinaIndex}
+                      selectedYear={selectedYear}
+                      selectedMonthIndex={selectedMonthIndex}
                     />
                   </section>
 
-                  {/* 3 & 4. Gráfico Combinado (Recharts) com Destaque Vermelho */}
+                  {/* 3 & 4. Gráfico Combinado (Recharts) com Destaque Vermelho e Seletor de Ano */}
                   <section aria-label="Gráfico de Demanda">
-                    <DemandChart usina={selectedUsina} />
+                    <DemandChart
+                      usina={selectedUsina}
+                      selectedYear={selectedYear}
+                      onSelectYear={(yr) => setSelectedYear(yr)}
+                    />
                   </section>
 
                   {/* Detalhamento Mensal da Usina */}
                   <section aria-label="Detalhamento Mensal">
-                    <MonthlyDetailTable usina={selectedUsina} />
+                    <MonthlyDetailTable
+                      usina={selectedUsina}
+                      selectedYear={selectedYear}
+                      selectedMonthIndex={selectedMonthIndex}
+                    />
                   </section>
 
                   {/* Visão Geral da Frota / Tabela de Usinas */}
@@ -442,7 +479,7 @@ export default function App() {
         <footer className="bg-white border-t border-slate-200 mt-12 py-5 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>
-              Monitor Operacional de Demanda de Usinas © 2026 · Relatórios de Desvio Operacional
+              Monitor Operacional de Demanda de Usinas · Anos 2024 e 2025
             </span>
             <span className="font-mono text-slate-400">
               Critérios de Corte: Superação &gt; +3% · Subutilização &lt; 5%

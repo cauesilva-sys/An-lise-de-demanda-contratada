@@ -1,4 +1,5 @@
 export interface MonthDataPoint {
+  year: number; // 2024, 2025, etc.
   monthIndex: number; // 1 to 12
   monthName: string; // e.g. "Janeiro", "Fevereiro", etc.
   monthShort: string; // "Jan", "Fev", etc.
@@ -13,6 +14,16 @@ export interface MonthDataPoint {
   percentageOfContracted: number; // (powerKw / contractedDemandKw) * 100
 }
 
+export interface YearlyPlantStats {
+  highestPeakKw: number;
+  highestPeakMonth: string;
+  highestPeakMonthIndex: number;
+  activeMonthsCount: number;
+  exceededMonthsCount: number;
+  averagePowerKw: number;
+  isExceededAnyMonth: boolean;
+}
+
 export interface UsinaMonthlyRecord {
   id: string;
   name: string;
@@ -21,9 +32,12 @@ export interface UsinaMonthlyRecord {
   toleranceLimitKw: number; // contractedDemandKw * 1.03 (+3%)
   threshold5PctKw: number; // contractedDemandKw * 0.05 (5%)
   months: MonthDataPoint[];
+  availableYears?: number[];
+  yearlyStats?: Record<number, YearlyPlantStats>;
   highestPeakKw: number;
   highestPeakMonth: string;
   highestPeakMonthIndex: number;
+  highestPeakYear?: number;
   isExceededAnyMonth: boolean;
   exceededMonthsCount: number;
   activeMonthsCount: number;

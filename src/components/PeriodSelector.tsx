@@ -55,6 +55,12 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
     }
   };
 
+  const availableYears = React.useMemo(() => {
+    const set = new Set<number>();
+    periodOptions.forEach((p) => set.add(p.year));
+    return Array.from(set).sort((a, b) => b - a);
+  }, [periodOptions]);
+
   const isFiltered = activeFilter !== 'all';
 
   return (
@@ -74,42 +80,63 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
                 (Mês e Ano dos Dados)
               </span>
             </div>
-            {/* Quick dropdown with prev/next buttons */}
-            <div className="flex items-center gap-1.5 mt-1">
-              <button
-                type="button"
-                onClick={handlePrev}
-                disabled={currentIndex <= 0}
-                className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                title="Mês anterior"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+            {/* Quick dropdown with prev/next buttons and year toggle */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {availableYears.length > 1 && (
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  {availableYears.map((yr) => (
+                    <button
+                      key={yr}
+                      type="button"
+                      onClick={() => onSelectPeriod(selectedMonthIndex, yr)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                        selectedYear === yr
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                      }`}
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-              <select
-                value={`${selectedYear}-${selectedMonthIndex}`}
-                onChange={(e) => {
-                  const [y, m] = e.target.value.split('-').map(Number);
-                  onSelectPeriod(m, y);
-                }}
-                className="bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-900 font-bold text-sm rounded-lg px-3 py-1 outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
-              >
-                {periodOptions.map((opt) => (
-                  <option key={opt.key} value={`${opt.year}-${opt.monthIndex}`}>
-                    {opt.label} {opt.hasData ? `(${opt.totalUsinasCount} ativas)` : '(Sem medição)'}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={currentIndex <= 0}
+                  className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  title="Mês anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={currentIndex >= periodOptions.length - 1}
-                className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                title="Próximo mês"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                <select
+                  value={`${selectedYear}-${selectedMonthIndex}`}
+                  onChange={(e) => {
+                    const [y, m] = e.target.value.split('-').map(Number);
+                    onSelectPeriod(m, y);
+                  }}
+                  className="bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-900 font-bold text-sm rounded-lg px-3 py-1 outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors"
+                >
+                  {periodOptions.map((opt) => (
+                    <option key={opt.key} value={`${opt.year}-${opt.monthIndex}`}>
+                      {opt.label} {opt.hasData ? `(${opt.totalUsinasCount} ativas)` : '(Sem medição)'}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={currentIndex >= periodOptions.length - 1}
+                  className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  title="Próximo mês"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -4,49 +4,73 @@ import { MONTH_NAMES, formatKw } from './demandParser';
 /**
  * Generate period options (months and year) with aggregated metrics
  */
-export function generatePeriodOptions(usinas: UsinaMonthlyRecord[], year = 2026): PeriodOption[] {
+export function generatePeriodOptions(
+  usinas: UsinaMonthlyRecord[],
+  availableYears?: number[]
+): PeriodOption[] {
   const options: PeriodOption[] = [];
 
-  for (let m = 1; m <= 12; m++) {
-    const monthName = MONTH_NAMES[m]?.full || `Mês ${m}`;
-    const monthShort = MONTH_NAMES[m]?.short || `M${m}`;
-    const key = `${year}-${String(m).padStart(2, '0')}`;
-    const label = `${monthName} / ${year}`;
-
-    let totalUsinasCount = 0;
-    let exceededCount = 0;
-    let underutilizedCount = 0;
-    let totalExcessKw = 0;
-
+  // Determine available years: prefer parameter or extract from usinas
+  let yearsToUse = availableYears && availableYears.length > 0 ? availableYears : [2025, 2024];
+  if (!availableYears || availableYears.length === 0) {
+    const extractedYears = new Set<number>();
     for (const u of usinas) {
-      const monthData = u.months.find((p) => p.monthIndex === m);
-      if (monthData) {
-        if (monthData.powerKw !== null && monthData.powerKw > 0) {
-          totalUsinasCount++;
-        }
-        if (monthData.isExceeded) {
-          exceededCount++;
-          totalExcessKw += monthData.excessKw;
-        }
-        if (monthData.isUnderutilized) {
-          underutilizedCount++;
-        }
+      if (u.availableYears) {
+        u.availableYears.forEach((y) => extractedYears.add(y));
+      }
+      for (const m of u.months) {
+        if (m.year) extractedYears.add(m.year);
       }
     }
+    if (extractedYears.size > 0) {
+      yearsToUse = Array.from(extractedYears).sort((a, b) => b - a); // 2025, 2024 descending
+    }
+  } else {
+    yearsToUse = [...yearsToUse].sort((a, b) => b - a);
+  }
 
-    options.push({
-      year,
-      monthIndex: m,
-      monthName,
-      monthShort,
-      label,
-      key,
-      hasData: totalUsinasCount > 0,
-      totalUsinasCount,
-      exceededCount,
-      underutilizedCount,
-      totalExcessKw: Math.round(totalExcessKw * 100) / 100,
-    });
+  for (const year of yearsToUse) {
+    for (let m = 1; m <= 12; m++) {
+      const monthName = MONTH_NAMES[m]?.full || `Mês ${m}`;
+      const monthShort = MONTH_NAMES[m]?.short || `M${m}`;
+      const key = `${year}-${String(m).padStart(2, '0')}`;
+      const label = `${monthName} / ${year}`;
+
+      let totalUsinasCount = 0;
+      let exceededCount = 0;
+      let underutilizedCount = 0;
+      let totalExcessKw = 0;
+
+      for (const u of usinas) {
+        const monthData = u.months.find((p) => p.monthIndex === m && p.year === year);
+        if (monthData) {
+          if (monthData.powerKw !== null && monthData.powerKw > 0) {
+            totalUsinasCount++;
+          }
+          if (monthData.isExceeded) {
+            exceededCount++;
+            totalExcessKw += monthData.excessKw;
+          }
+          if (monthData.isUnderutilized) {
+            underutilizedCount++;
+          }
+        }
+      }
+
+      options.push({
+        year,
+        monthIndex: m,
+        monthName,
+        monthShort,
+        label,
+        key,
+        hasData: totalUsinasCount > 0,
+        totalUsinasCount,
+        exceededCount,
+        underutilizedCount,
+        totalExcessKw: Math.round(totalExcessKw * 100) / 100,
+      });
+    }
   }
 
   return options;
@@ -58,14 +82,14 @@ export function generatePeriodOptions(usinas: UsinaMonthlyRecord[], year = 2026)
 export function getOverDemandReport(
   usinas: UsinaMonthlyRecord[],
   monthIndex: number,
-  year = 2026
+  year = 2025
 ): OverDemandReportItem[] {
   const report: OverDemandReportItem[] = [];
   const monthName = MONTH_NAMES[monthIndex]?.full || `Mês ${monthIndex}`;
   const periodLabel = `${monthName} / ${year}`;
 
   for (const u of usinas) {
-    const monthData = u.months.find((p) => p.monthIndex === monthIndex);
+    const monthData = u.months.find((p) => p.monthIndex === monthIndex && p.year === year);
     if (!monthData || monthData.powerKw === null) continue;
 
     // Check if exceeded tolerance limit (+3%)
@@ -78,7 +102,7 @@ export function getOverDemandReport(
       const utilizationPercentage = Math.round((measuredPeakKw / contractedDemandKw) * 1000) / 10;
 
       report.push({
-        id: `${u.id}-over-${monthIndex}`,
+        id: `${u.id}-over-${year}-${monthIndex}`,
         usinaId: u.id,
         usinaName: u.name,
         responsible: u.responsible || 'Operação Central',
@@ -106,7 +130,7 @@ export function getOverDemandReport(
 export function getUnderDemandReport(
   usinas: UsinaMonthlyRecord[],
   monthIndex: number,
-  year = 2026,
+  year = 2025,
   includeZeroOrOffline = true
 ): UnderDemandReportItem[] {
   const report: UnderDemandReportItem[] = [];
@@ -114,7 +138,7 @@ export function getUnderDemandReport(
   const periodLabel = `${monthName} / ${year}`;
 
   for (const u of usinas) {
-    const monthData = u.months.find((p) => p.monthIndex === monthIndex);
+    const monthData = u.months.find((p) => p.monthIndex === monthIndex && p.year === year);
     const contractedDemandKw = u.contractedDemandKw;
     const threshold5PctKw = u.threshold5PctKw || Math.round(contractedDemandKw * 0.05 * 100) / 100;
 
@@ -124,7 +148,7 @@ export function getUnderDemandReport(
     if (isZeroOrOffline) {
       if (includeZeroOrOffline) {
         report.push({
-          id: `${u.id}-under-${monthIndex}`,
+          id: `${u.id}-under-${year}-${monthIndex}`,
           usinaId: u.id,
           usinaName: u.name,
           responsible: u.responsible || 'Operação Central',
@@ -257,7 +281,7 @@ export function exportUnderDemandToCsv(items: UnderDemandReportItem[], periodLab
 export function exportPeriodSummaryToCsv(
   usinas: UsinaMonthlyRecord[],
   monthIndex: number,
-  year = 2026
+  year = 2025
 ) {
   const monthName = MONTH_NAMES[monthIndex]?.full || `Mês ${monthIndex}`;
   const periodLabel = `${monthName} / ${year}`;
@@ -278,7 +302,7 @@ export function exportPeriodSummaryToCsv(
   const rows = [header.join(';')];
 
   for (const u of usinas) {
-    const monthData = u.months.find((m) => m.monthIndex === monthIndex);
+    const monthData = u.months.find((m) => m.monthIndex === monthIndex && m.year === year);
     const powerKw = monthData?.powerKw ?? null;
     const contracted = u.contractedDemandKw;
     const tolerance = u.toleranceLimitKw;

@@ -135,6 +135,7 @@ export const DEMANDAS_FIXAS: Record<string, number> = {
   "Luis Eduardo Magalhaes II - UFV06": 500,
   "Aliança - UFV 01": 1000,
   "Aliança - UFV 02": 1000,
+  "Aliança - UFV 02:": 1000,
 };
 
 /**
