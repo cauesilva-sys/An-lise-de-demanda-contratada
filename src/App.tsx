@@ -24,15 +24,17 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { getDemandaFixa } from './data/demandasFixas';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
-const CSV_2024_PATH = '/data/usinas_demanda_2024.csv';
+const CSV_2026_PATH = '/data/usinas_demanda_2026.csv';
 const CSV_2025_PATH = '/data/usinas_demanda_2025.csv';
-const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
+const CSV_2024_PATH = '/data/usinas_demanda_2024.csv';
+const FALLBACK_2026_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2026_b86cf631.csv';
 const FALLBACK_2025_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2025_419e411e.csv';
+const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
 
 export default function App() {
   const [sheetResult, setSheetResult] = useState<SheetParseResult | null>(null);
   const [selectedUsinaId, setSelectedUsinaId] = useState<string>('');
-  const [currentUrl, setCurrentUrl] = useState<string>('Planilhas 2024 & 2025 Consolidadas');
+  const [currentUrl, setCurrentUrl] = useState<string>('Planilhas 2024, 2025 & 2026 Consolidadas');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -43,9 +45,9 @@ export default function App() {
   // Filter mode for selected period: 'all' | 'over_3' | 'under_5'
   const [filterMode, setFilterMode] = useState<PeriodFilterMode>('all');
 
-  // Selected period for deviation reporting (default to Dezembro 2025, highest operational coverage)
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(12);
-  const [selectedYear, setSelectedYear] = useState<number>(2025);
+  // Selected period for deviation reporting (default to Outubro 2026, latest active operational month)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(10);
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -55,7 +57,7 @@ export default function App() {
   };
 
   /**
-   * Fetch data for 2024 and 2025 in parallel and merge into unified dataset
+   * Fetch data for 2024, 2025, and 2026 in parallel and merge into unified dataset
    */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -74,9 +76,10 @@ export default function App() {
         return '';
       };
 
-      const [text2024, text2025] = await Promise.all([
+      const [text2024, text2025, text2026] = await Promise.all([
         fetchWithFallback(CSV_2024_PATH, FALLBACK_2024_PATH),
         fetchWithFallback(CSV_2025_PATH, FALLBACK_2025_PATH),
+        fetchWithFallback(CSV_2026_PATH, FALLBACK_2026_PATH),
       ]);
 
       const parsedResults: SheetParseResult[] = [];
@@ -86,9 +89,12 @@ export default function App() {
       if (text2025) {
         parsedResults.push(parseSheetCsv(text2025, 'Pico_Demanda_2025.csv', 2025));
       }
+      if (text2026) {
+        parsedResults.push(parseSheetCsv(text2026, 'Pico_Demanda_2026.csv', 2026));
+      }
 
       if (parsedResults.length === 0) {
-        // Fallback attempt with legacy file if neither 2024 nor 2025 loaded
+        // Fallback attempt with legacy file if none loaded
         const legResp = await fetch(`/data/usinas_demanda_mensal.csv?_t=${Date.now()}`);
         if (legResp.ok) {
           const legText = await legResp.text();
@@ -97,7 +103,7 @@ export default function App() {
       }
 
       if (parsedResults.length === 0) {
-        throw new Error('Não foi possível carregar as planilhas de demanda de 2024 e 2025.');
+        throw new Error('Não foi possível carregar as planilhas de demanda de 2024, 2025 e 2026.');
       }
 
       const merged = mergeSheetResults(parsedResults);
@@ -106,7 +112,7 @@ export default function App() {
       }
 
       setSheetResult(merged);
-      setCurrentUrl('Planilhas 2024 & 2025 Consolidadas (125 Usinas)');
+      setCurrentUrl('Planilhas 2024, 2025 & 2026 Consolidadas (125 Usinas)');
 
       // Auto-select initial plant
       setSelectedUsinaId((prev) => {
@@ -117,7 +123,7 @@ export default function App() {
         return firstExceeded ? firstExceeded.id : merged.usinas[0].id;
       });
 
-      showToast(`Dados de 2024 e 2025 atualizados com sucesso! (${merged.usinas.length} usinas)`);
+      showToast(`Dados de 2024, 2025 e 2026 atualizados com sucesso! (${merged.usinas.length} usinas)`);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err?.message || 'Erro ao carregar dados operacionais.');
@@ -353,6 +359,12 @@ export default function App() {
               onToggleFilter={(mode) => setFilterMode(mode)}
               onExportExcel={handleExportActiveExcel}
               filteredCount={displayedUsinas.length}
+              overDemandItems={overDemandItems}
+              selectedUsinaId={selectedUsina?.id}
+              onSelectUsina={(id) => {
+                setSelectedUsinaId(id);
+                showToast('Usina selecionada para foco no gráfico.');
+              }}
             />
           )}
 
@@ -378,10 +390,10 @@ export default function App() {
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
               <p className="text-sm font-semibold text-slate-600">
-                Processando dados operacionais de 2024 e 2025...
+                Processando dados operacionais de 2024, 2025 e 2026...
               </p>
               <p className="text-xs text-slate-400">
-                Calculando demandas contratadas fixas, margem de +3% e corte de 5% por usina, ano e mês.
+                Calculando demandas contratadas fixas, margem de tolerância (+3%) e corte de 5% por usina, ano e mês.
               </p>
             </div>
           )}
@@ -479,10 +491,10 @@ export default function App() {
         <footer className="bg-white border-t border-slate-200 mt-12 py-5 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>
-              Monitor Operacional de Demanda de Usinas · Anos 2024 e 2025
+              Monitor Operacional de Demanda de Usinas · Anos 2024, 2025 e 2026
             </span>
             <span className="font-mono text-slate-400">
-              Critérios de Corte: Superação &gt; +3% · Subutilização &lt; 5%
+              Critérios de Corte: Ultrapassagem &gt; +3% · Subutilização &lt; 5%
             </span>
           </div>
         </footer>

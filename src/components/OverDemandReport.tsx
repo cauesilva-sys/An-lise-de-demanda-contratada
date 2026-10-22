@@ -215,14 +215,14 @@ export const OverDemandReport: React.FC<OverDemandReportProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-white tracking-tight">
-                  Relatório 1: Superação de Demanda Acima de 3%
+                  Relatório: Ultrapassagem de Demanda +3%
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
                   {periodLabel}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                Listagem oficial de usinas que ultrapassaram a tolerância regulatória de <strong>+3%</strong> sobre a Demanda Contratada. Selecione individualmente ou em lote para acompanhamento operacional e exportação.
+                Relatório oficial de usinas que ultrapassaram a tolerância contratual e regulatória de <strong>+3%</strong> sobre a Demanda Contratada. Utilize os filtros e seleções para acompanhamento operacional e exportação de dados.
               </p>
             </div>
           </div>
@@ -305,6 +305,40 @@ export const OverDemandReport: React.FC<OverDemandReportProps> = ({
                 <span className="text-xs text-slate-500">—</span>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Self-Explanatory Contextual Guide for Third Parties */}
+      <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 text-xs text-slate-700 space-y-2">
+        <div className="flex items-center gap-2 text-blue-900 font-bold">
+          <TrendingUp className="w-4 h-4 text-blue-700" />
+          <span>Guia Explicativo: Como interpretar os dados desta aba (Contexto Regulatório ANEEL)</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-slate-600">
+          <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100 space-y-1">
+            <strong className="text-slate-900 font-semibold block text-[11px] uppercase tracking-wide">
+              1. Demanda Contratada (kW)
+            </strong>
+            <p className="text-[11px] leading-relaxed">
+              Valor de potência ativa em quilowatts (kW) contratado formalmente junto à concessionária de energia elétrica no Contrato de Uso do Sistema de Distribuição (CUSD).
+            </p>
+          </div>
+          <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100 space-y-1">
+            <strong className="text-red-700 font-semibold block text-[11px] uppercase tracking-wide">
+              2. Margem de Tolerância (+3%)
+            </strong>
+            <p className="text-[11px] leading-relaxed">
+              Segundo a Resolução Normativa ANEEL nº 1.000/2021, há uma tolerância regulatória de até +3% acima do contratado (Limite = Contratada × 1,03) sem incidência de penalidade.
+            </p>
+          </div>
+          <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100 space-y-1">
+            <strong className="text-amber-800 font-semibold block text-[11px] uppercase tracking-wide">
+              3. Faturamento por Ultrapassagem
+            </strong>
+            <p className="text-[11px] leading-relaxed">
+              Quando o Pico Medido supera o Limite de +3%, a parcela em excesso é tarifada como <em>ultrapassagem de demanda</em>, geralmente cobrada em dobro pela distribuidora.
+            </p>
           </div>
         </div>
       </div>

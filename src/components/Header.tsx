@@ -125,9 +125,10 @@ export const Header: React.FC<HeaderProps> = ({
               ? 'bg-red-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-red-700 hover:bg-red-50'
           }`}
+          title="Relatório focado de usinas com ultrapassagem superior a 3% da demanda contratada"
         >
           <AlertTriangle className="w-3.5 h-3.5 text-current" />
-          <span>Reporte 1: Superação &gt; 3%</span>
+          <span>Ultrapassagem de Demanda +3%</span>
           {exceededCount > 0 && (
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
