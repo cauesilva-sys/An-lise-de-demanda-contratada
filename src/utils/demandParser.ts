@@ -1,4 +1,5 @@
 import { MonthDataPoint, UsinaMonthlyRecord, SheetParseResult } from '../types/demand';
+import { getDemandaFixa } from '../data/demandasFixas';
 
 export const MONTH_NAMES: { [key: number]: { full: string; short: string } } = {
   1: { full: 'Janeiro', short: 'Jan' },
@@ -36,6 +37,33 @@ export function parseCsvLine(line: string, delimiter = ','): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+/**
+ * Parse Demanda Contratada (Coluna B) according to explicit specifications:
+ * 1. Remova todos os pontos de milhar: .replace(/\./g, '')
+ * 2. Substitua vírgula por ponto: .replace(',', '.')
+ * 3. Converta o valor resultante com parseFloat()
+ */
+export function parseContractedDemand(val: string | number | undefined | null): number {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') {
+    return isNaN(val) || val <= 0 ? 0 : val;
+  }
+  let str = String(val)
+    .replace(/^"+|"+$/g, '')
+    .trim();
+
+  if (!str || str === '0' || str === '-' || str.toLowerCase() === 'n/a') {
+    return 0;
+  }
+
+  // 1. Remova todos os pontos de milhar: .replace(/\./g, '')
+  // 2. Substitua vírgula por ponto: .replace(',', '.')
+  // 3. Converta o valor resultante com parseFloat()
+  str = str.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(str);
+  return isNaN(num) || num <= 0 ? 0 : num;
 }
 
 /**
@@ -169,7 +197,14 @@ function parseMatrixMonthlyFormat(
       continue;
     }
 
-    const contractedDemand = parseNumericValue(cols[1]) || 0;
+    // Regra 1: Obtenha a Demanda Contratada diretamente de demandasFixas[usinaSelecionada]
+    const fixedDemand = getDemandaFixa(rawName);
+
+    // Regra 2: Se o nome não for localizado no mapa, utilize a conversão limpa da Coluna B como alternativa de segurança
+    const fallbackDemand = parseContractedDemand(cols[1]);
+    const contractedDemand = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : fallbackDemand;
+
+    // Regra 3: Limite Regulatório de +3% deve ser sempre: demandaContratada * 1.03
     const toleranceLimit = Math.round(contractedDemand * 1.03 * 100) / 100;
 
     // Build map for each month 1..12
@@ -272,7 +307,7 @@ function parseTimeseriesLogFormat(
     const cols = parseCsvLine(lines[i], delimiter);
     if (cols.length < 3) continue;
 
-    const dateStr = cols[0]; // e.g. "19/10/2026" or "2026-10-19"
+    const dateStr = cols[0];
     let plantName = (cols[1] || '')
       .replace(/^"+|"+$/g, '')
       .replace(/: Active Power$/i, '')
@@ -281,7 +316,11 @@ function parseTimeseriesLogFormat(
     if (!plantName) continue;
 
     const power = parseNumericValue(cols[2]);
-    const contracted = cols.length >= 5 ? parseNumericValue(cols[4]) : null;
+
+    // Priority: getDemandaFixa -> then fallback to cols[4]
+    const fixedDemand = getDemandaFixa(plantName);
+    const fallbackDemand = cols.length >= 5 ? parseContractedDemand(cols[4]) : 0;
+    const contracted = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : fallbackDemand;
 
     // Extract month from date
     let month: number | null = null;
@@ -306,7 +345,7 @@ function parseTimeseriesLogFormat(
       };
     }
 
-    if (contracted && tempMap[plantName].contracted === 0) {
+    if (contracted > 0 && (tempMap[plantName].contracted === 0 || contracted > tempMap[plantName].contracted)) {
       tempMap[plantName].contracted = contracted;
     }
 
@@ -324,7 +363,10 @@ function parseTimeseriesLogFormat(
   for (let i = 0; i < plantNames.length; i++) {
     const name = plantNames[i];
     const data = tempMap[name];
-    const contractedDemand = data.contracted;
+
+    // Priority: getDemandaFixa -> then data.contracted
+    const fixedDemand = getDemandaFixa(name);
+    const contractedDemand = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : data.contracted;
     const toleranceLimit = Math.round(contractedDemand * 1.03 * 100) / 100;
 
     const monthPoints: MonthDataPoint[] = [];
@@ -450,7 +492,7 @@ export function formatKw(val: number | null | undefined, includeUnit = true): st
     return '—';
   }
   const formatted = val.toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
   return includeUnit ? `${formatted} kW` : formatted;

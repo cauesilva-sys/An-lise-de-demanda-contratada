@@ -10,6 +10,7 @@ import { DemandChart } from './components/DemandChart';
 import { MonthlyDetailTable } from './components/MonthlyDetailTable';
 import { AllPlantsRankingTable } from './components/AllPlantsRankingTable';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { getDemandaFixa } from './data/demandasFixas';
 import { AlertCircle, CheckCircle2, RefreshCw, HelpCircle } from 'lucide-react';
 
 const DEFAULT_CSV_URL = '/data/usinas_demanda_mensal.csv';
@@ -141,10 +142,45 @@ export default function App() {
     }
   };
 
-  // Find currently selected usina
+  // Find currently selected usina, guaranteeing Demanda Contratada is taken from demandasFixas
   const selectedUsina: UsinaMonthlyRecord | null = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return null;
-    return sheetResult.usinas.find((u) => u.id === selectedUsinaId) || sheetResult.usinas[0];
+    const found = sheetResult.usinas.find((u) => u.id === selectedUsinaId) || sheetResult.usinas[0];
+    if (!found) return null;
+
+    // Regra 1: Obtenha a Demanda Contratada diretamente de demandasFixas[usinaSelecionada]
+    const fixedDemand = getDemandaFixa(found.name);
+    const contractedDemand = fixedDemand !== null && fixedDemand > 0 ? fixedDemand : found.contractedDemandKw;
+    const toleranceLimit = Math.round(contractedDemand * 1.03 * 100) / 100;
+
+    if (contractedDemand !== found.contractedDemandKw) {
+      const updatedMonths = found.months.map((m) => {
+        const isExceeded = m.powerKw !== null && m.powerKw > toleranceLimit;
+        const excess = isExceeded && m.powerKw !== null ? Math.round((m.powerKw - toleranceLimit) * 100) / 100 : 0;
+        const pct = m.powerKw !== null && contractedDemand > 0 ? Math.round((m.powerKw / contractedDemand) * 1000) / 10 : 0;
+        return {
+          ...m,
+          contractedDemandKw: contractedDemand,
+          toleranceLimitKw: toleranceLimit,
+          isExceeded,
+          excessKw: excess,
+          percentageOfContracted: pct,
+        };
+      });
+
+      const exceededCount = updatedMonths.filter((m) => m.isExceeded).length;
+
+      return {
+        ...found,
+        contractedDemandKw: contractedDemand,
+        toleranceLimitKw: toleranceLimit,
+        months: updatedMonths,
+        isExceededAnyMonth: exceededCount > 0,
+        exceededMonthsCount: exceededCount,
+      };
+    }
+
+    return found;
   }, [sheetResult, selectedUsinaId]);
 
   const currentUsinaIndex = useMemo(() => {
