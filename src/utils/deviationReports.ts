@@ -57,6 +57,9 @@ export function generatePeriodOptions(
         }
       }
 
+      // Future/unrecorded months across the fleet should not flag underutilization
+      const effectiveUnderutilizedCount = totalUsinasCount > 0 ? underutilizedCount : 0;
+
       options.push({
         year,
         monthIndex: m,
@@ -67,7 +70,7 @@ export function generatePeriodOptions(
         hasData: totalUsinasCount > 0,
         totalUsinasCount,
         exceededCount,
-        underutilizedCount,
+        underutilizedCount: effectiveUnderutilizedCount,
         totalExcessKw: Math.round(totalExcessKw * 100) / 100,
       });
     }

@@ -101,17 +101,21 @@ export const DemandChart: React.FC<DemandChartProps> = ({
       const mIdx = i + 1;
       const m2024 = usina.months.find((m) => m.year === 2024 && m.monthIndex === mIdx);
       const m2025 = usina.months.find((m) => m.year === 2025 && m.monthIndex === mIdx);
+      const m2026 = usina.months.find((m) => m.year === 2026 && m.monthIndex === mIdx);
 
       const p2024 = m2024?.powerKw && m2024.powerKw > 0 ? m2024.powerKw : null;
       const p2025 = m2025?.powerKw && m2025.powerKw > 0 ? m2025.powerKw : null;
+      const p2026 = m2026?.powerKw && m2026.powerKw > 0 ? m2026.powerKw : null;
 
       return {
         monthIndex: mIdx,
         displayMonth: monthNames[i],
         power2024: p2024,
         power2025: p2025,
+        power2026: p2026,
         isExceeded2024: m2024?.isExceeded || false,
         isExceeded2025: m2025?.isExceeded || false,
+        isExceeded2026: m2026?.isExceeded || false,
         contractedDemandKw: usina.contractedDemandKw,
         toleranceLimitKw: usina.toleranceLimitKw,
       };
@@ -126,6 +130,7 @@ export const DemandChart: React.FC<DemandChartProps> = ({
       comparativeData.forEach((d) => {
         if (d.power2024) values.push(d.power2024);
         if (d.power2025) values.push(d.power2025);
+        if (d.power2026) values.push(d.power2026);
       });
     } else {
       singleYearData.forEach((d) => {
@@ -208,7 +213,7 @@ export const DemandChart: React.FC<DemandChartProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              Comparativo 2024 x 2025
+              Comparativo Anual (2024 a 2026)
             </button>
           </div>
         </div>
@@ -237,6 +242,10 @@ export const DemandChart: React.FC<DemandChartProps> = ({
               <div className="flex items-center gap-1.5 text-slate-700 font-medium">
                 <span className="w-3 h-3 rounded-xs bg-[#0EA5E9] inline-block" />
                 <span>Pico 2025 (kW)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                <span className="w-3 h-3 rounded-xs bg-[#10B981] inline-block" />
+                <span>Pico 2026 (kW)</span>
               </div>
               <div className="flex items-center gap-1.5 text-red-700 font-medium">
                 <span className="w-3 h-3 rounded-xs bg-[#DC2626] inline-block" />
@@ -422,7 +431,7 @@ export const DemandChart: React.FC<DemandChartProps> = ({
                 name="2024 (kW)"
                 fill="#6366F1"
                 radius={[4, 4, 0, 0]}
-                maxBarSize={32}
+                maxBarSize={24}
               >
                 {comparativeData.map((entry) => (
                   <Cell
@@ -438,12 +447,28 @@ export const DemandChart: React.FC<DemandChartProps> = ({
                 name="2025 (kW)"
                 fill="#0EA5E9"
                 radius={[4, 4, 0, 0]}
-                maxBarSize={32}
+                maxBarSize={24}
               >
                 {comparativeData.map((entry) => (
                   <Cell
                     key={`bar-25-${entry.monthIndex}`}
                     fill={entry.isExceeded2025 ? '#DC2626' : '#0EA5E9'}
+                  />
+                ))}
+              </Bar>
+
+              {/* Bar 2026 */}
+              <Bar
+                dataKey="power2026"
+                name="2026 (kW)"
+                fill="#10B981"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={24}
+              >
+                {comparativeData.map((entry) => (
+                  <Cell
+                    key={`bar-26-${entry.monthIndex}`}
+                    fill={entry.isExceeded2026 ? '#DC2626' : '#10B981'}
                   />
                 ))}
               </Bar>
@@ -563,7 +588,7 @@ const ComparativeTooltip: React.FC<ComparativeTooltipProps> = ({ active, payload
   return (
     <div className="bg-slate-900 text-white rounded-lg p-3.5 shadow-xl text-xs border border-slate-700 min-w-[260px]">
       <div className="border-b border-slate-800 pb-2 mb-2.5 font-bold text-sm text-slate-100">
-        Mês: {d.displayMonth} (Comparativo 2024 x 2025)
+        Mês: {d.displayMonth} (Comparativo Anual)
       </div>
 
       <div className="space-y-2">
@@ -572,7 +597,7 @@ const ComparativeTooltip: React.FC<ComparativeTooltipProps> = ({ active, payload
             <span className="w-2.5 h-2.5 rounded-xs bg-indigo-500 inline-block" />
             Ano 2024:
           </span>
-          <span className="font-mono font-bold text-indigo-300">
+          <span className={`font-mono font-bold ${d.isExceeded2024 ? 'text-red-400' : 'text-indigo-300'}`}>
             {d.power2024 !== null ? formatKw(d.power2024) : 'Sem medição'}
           </span>
         </div>
@@ -584,6 +609,16 @@ const ComparativeTooltip: React.FC<ComparativeTooltipProps> = ({ active, payload
           </span>
           <span className={`font-mono font-bold ${d.isExceeded2025 ? 'text-red-400' : 'text-sky-300'}`}>
             {d.power2025 !== null ? formatKw(d.power2025) : 'Sem medição'}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <span className="flex items-center gap-1.5 text-emerald-300">
+            <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 inline-block" />
+            Ano 2026:
+          </span>
+          <span className={`font-mono font-bold ${d.isExceeded2026 ? 'text-red-400' : 'text-emerald-300'}`}>
+            {d.power2026 !== null ? formatKw(d.power2026) : 'Sem medição'}
           </span>
         </div>
 

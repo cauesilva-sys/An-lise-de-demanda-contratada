@@ -26,6 +26,12 @@ export const MonthlyDetailTable: React.FC<MonthlyDetailTableProps> = ({
 
   const [yearFilter, setYearFilter] = useState<'all' | number>(selectedYear);
 
+  React.useEffect(() => {
+    if (selectedYear) {
+      setYearFilter(selectedYear);
+    }
+  }, [selectedYear]);
+
   // Filter months based on yearFilter
   const displayedMonths = useMemo(() => {
     let list = [...usina.months];

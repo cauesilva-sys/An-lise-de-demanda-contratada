@@ -27,7 +27,7 @@ import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 const CSV_2026_PATH = '/data/usinas_demanda_2026.csv';
 const CSV_2025_PATH = '/data/usinas_demanda_2025.csv';
 const CSV_2024_PATH = '/data/usinas_demanda_2024.csv';
-const FALLBACK_2026_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2026_b86cf631.csv';
+const FALLBACK_2026_PATH = '/assets/aistudio/Demanda_pico_por_usina_2026_-_Resumo_mensal_d0c89171.csv';
 const FALLBACK_2025_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2025_419e411e.csv';
 const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
 
@@ -112,18 +112,29 @@ export default function App() {
       }
 
       setSheetResult(merged);
-      setCurrentUrl('Planilhas 2024, 2025 & 2026 Consolidadas (125 Usinas)');
+      setCurrentUrl(`Planilhas 2024, 2025 & 2026 Consolidadas (${merged.usinas.length} Usinas)`);
 
-      // Auto-select initial plant
+      // Auto-select initial plant prioritizing 2026 active overdemand
       setSelectedUsinaId((prev) => {
         if (prev && merged.usinas.some((u) => u.id === prev)) {
           return prev;
         }
+        const oct2026Exceeded = merged.usinas.find((u) => {
+          const m = u.months.find((p) => p.year === 2026 && p.monthIndex === 10);
+          return m && m.isExceeded;
+        });
+        if (oct2026Exceeded) return oct2026Exceeded.id;
+
+        const any2026Exceeded = merged.usinas.find((u) =>
+          u.months.some((p) => p.year === 2026 && p.isExceeded)
+        );
+        if (any2026Exceeded) return any2026Exceeded.id;
+
         const firstExceeded = merged.usinas.find((u) => u.isExceededAnyMonth);
         return firstExceeded ? firstExceeded.id : merged.usinas[0].id;
       });
 
-      showToast(`Dados de 2024, 2025 e 2026 atualizados com sucesso! (${merged.usinas.length} usinas)`);
+      showToast(`Dados de 2026 atualizados com sucesso! (${merged.usinas.length} usinas carregadas)`);
     } catch (err: any) {
       console.error('Fetch error:', err);
       setError(err?.message || 'Erro ao carregar dados operacionais.');

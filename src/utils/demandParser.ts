@@ -232,9 +232,10 @@ function parseMatrixMonthlyFormat(
     if (!rawName || rawName.toLowerCase().startsWith('total') || rawName.toLowerCase().startsWith('média')) {
       continue;
     }
+    const cleanName = rawName.replace(/[:;\s]+$/, '').trim();
 
     // Regra 1: Obtenha a Demanda Contratada diretamente de demandasFixas[usinaSelecionada]
-    const fixedDemand = getDemandaFixa(rawName);
+    const fixedDemand = getDemandaFixa(cleanName) ?? getDemandaFixa(rawName);
 
     // Regra 2: Se o nome não for localizado no mapa, utilize a conversão limpa da Coluna B como alternativa de segurança
     const fallbackDemand = parseContractedDemand(cols[1]);
@@ -363,8 +364,8 @@ function parseMatrixMonthlyFormat(
     };
 
     usinas.push({
-      id: `usina-${i}-${rawName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-      name: rawName,
+      id: `usina-${i}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      name: cleanName,
       responsible,
       contractedDemandKw: contractedDemand,
       toleranceLimitKw: toleranceLimit,
@@ -627,7 +628,7 @@ export function mergeSheetResults(results: SheetParseResult[]): SheetParseResult
     }
 
     for (const u of res.usinas) {
-      const normKey = u.name.trim().toLowerCase();
+      const normKey = u.name.trim().replace(/[:;\s]+$/, '').toLowerCase();
       const existing = plantMap.get(normKey);
 
       if (!existing) {
