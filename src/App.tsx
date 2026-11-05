@@ -24,16 +24,16 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { getDemandaFixa } from './data/demandasFixas';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
-// ID oficial da sua planilha do Google Sheets
+// ID oficial da sua planilha
 const SPREADSHEET_ID = '11YGvwcxt8-65qKXm-7db5n070FnkAApYajZ-Nl9l9fo';
 
-// Fallbacks locais para contingência extrema (sem internet ou offline)
+// Fallbacks locais apenas em caso de falta de conexão à internet
 const FALLBACK_2026_PATH = '/assets/aistudio/Demanda_pico_por_usina_2026_-_Resumo_mensal__2__a9241f53.csv';
 const FALLBACK_2025_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2025_419e411e.csv';
 const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
 
 /**
- * Faz download do CSV de uma aba específica do Google Sheets pelo nome da aba
+ * Baixa o CSV de uma aba específica do Google Sheets em tempo real
  */
 async function fetchSheetCsvPorAno(ano: number, spreadsheetId: string): Promise<string | null> {
   const nomeAba = encodeURIComponent(`Demanda pico Ano ${ano}`);
@@ -43,11 +43,9 @@ async function fetchSheetCsvPorAno(ano: number, spreadsheetId: string): Promise<
     const res = await fetch(url);
     if (!res.ok) return null;
     const txt = await res.text();
-    // Se retornar página HTML (erro de permissão ou aba inexistente)
     if (txt.includes('<!DOCTYPE html>') || txt.includes('google.visualization.Query.setResponse')) {
       return null;
     }
-    // Verifica se tem conteúdo suficiente além de quebras de linha
     if (txt.trim().length < 50) return null;
     return txt;
   } catch {
@@ -69,7 +67,7 @@ export default function App() {
   // Filter mode for selected period: 'all' | 'over_3' | 'under_5'
   const [filterMode, setFilterMode] = useState<PeriodFilterMode>('all');
 
-  // Selected period for deviation reporting (padrão inicial)
+  // Período selecionado inicial (prioriza o ano 2026 ativo)
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(10);
   const [selectedYear, setSelectedYear] = useState<number>(2026);
 
@@ -82,7 +80,7 @@ export default function App() {
 
   /**
    * Varre dinamicamente as abas da planilha (2024 até 2 anos à frente)
-   * detectando automaticamente novos anos como 2027, 2028 sem alteração de código.
+   * Detecta automaticamente 2027, 2028 assim que a aba for criada no Google Sheets
    */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -91,14 +89,14 @@ export default function App() {
     try {
       const currentYear = new Date().getFullYear();
       const minYear = 2024;
-      const maxYear = Math.max(currentYear + 2, 2027); // Garante a busca de 2024 até pelo menos 2027/2028
+      const maxYear = Math.max(currentYear + 2, 2027);
 
       const anosParaPesquisar: number[] = [];
       for (let y = minYear; y <= maxYear; y++) {
         anosParaPesquisar.push(y);
       }
 
-      // 1. Tenta carregar todas as abas diretamente do Google Sheets em paralelo
+      // Consulta todas as abas do Google Sheets em paralelo
       const sheetResponses = await Promise.all(
         anosParaPesquisar.map(async (ano) => {
           const csvText = await fetchSheetCsvPorAno(ano, SPREADSHEET_ID);
@@ -121,9 +119,9 @@ export default function App() {
         }
       }
 
-      // 2. Se nenhuma aba respondeu (ex: sem conexão à internet ou planilha offline), recorre aos fallbacks
+      // Se o Google Sheets estiver offline/sem rede, recorre aos fallbacks locais
       if (parsedResults.length === 0) {
-        console.warn('Google Sheets indisponível no momento. Carregando arquivos de contingência local...');
+        console.warn('Planilha indisponível, usando arquivos locais de contingência...');
         const fetchFallback = async (path: string) => {
           try {
             const res = await fetch(`${path}?_t=${Date.now()}`);
@@ -144,7 +142,7 @@ export default function App() {
       }
 
       if (parsedResults.length === 0) {
-        throw new Error('Não foi possível carregar os dados do Google Sheets nem os arquivos locais.');
+        throw new Error('Não foi possível carregar os dados da planilha Google Sheets.');
       }
 
       const merged = mergeSheetResults(parsedResults);
@@ -159,12 +157,11 @@ export default function App() {
 
       setCurrentUrl(`Google Sheets Conectado (${anosCarregados.join(', ')}) · ${merged.usinas.length} Usinas`);
 
-      // Atualiza o ano padrão para o mais recente disponível caso o atual não exista
       if (!anosCarregados.includes(selectedYear)) {
         setSelectedYear(anoMaisRecente);
       }
 
-      // Seleção automática inicial da usina
+      // Seleciona a usina automaticamente (prioriza a usina com ultrapassagem)
       setSelectedUsinaId((prev) => {
         if (prev && merged.usinas.some((u) => u.id === prev)) {
           return prev;
@@ -189,7 +186,7 @@ export default function App() {
     }
   }, [selectedYear]);
 
-  // Carrega ao montar a página
+  // Carrega ao abrir a página
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -230,7 +227,7 @@ export default function App() {
     }
   };
 
-  // Usina atualmente selecionada com cálculo de tolerâncias
+  // Usina atualmente selecionada com cálculo de tolerâncias (+3% e corte de 5%)
   const selectedUsina: UsinaMonthlyRecord | null = useMemo(() => {
     if (!sheetResult || sheetResult.usinas.length === 0) return null;
     const found = sheetResult.usinas.find((u) => u.id === selectedUsinaId) || sheetResult.usinas[0];
