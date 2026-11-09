@@ -28,7 +28,8 @@ import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 const SPREADSHEET_ID = '11YGvwcxt8-65qKXm-7db5n070FnkAApYajZ-Nl9l9fo';
 
 // Fallbacks locais apenas em caso de falta de conexão à internet
-const FALLBACK_2026_PATH = '/assets/aistudio/Demanda_pico_por_usina_2026_-_Resumo_mensal__2__a9241f53.csv';
+const LOCAL_2026_PATH = '/data/usinas_demanda_2026.csv';
+const FALLBACK_2026_PATH = '/assets/aistudio/Demanda_pico_por_usina_2026_-_Resumo_mensal__3__550c0c63.csv';
 const FALLBACK_2025_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2025_419e411e.csv';
 const FALLBACK_2024_PATH = '/assets/aistudio/Pico_Demanda_Contratada_Mensal_-_Demanda_pico_Ano_2024_6d4dad48.csv';
 
@@ -67,8 +68,8 @@ export default function App() {
   // Filter mode for selected period: 'all' | 'over_3' | 'under_5'
   const [filterMode, setFilterMode] = useState<PeriodFilterMode>('all');
 
-  // Período selecionado inicial (prioriza o ano 2026 ativo)
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(10);
+  // Período selecionado inicial (prioriza o mês de Novembro / 2026 recém-atualizado)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(11);
   const [selectedYear, setSelectedYear] = useState<number>(2026);
 
   const showToast = (msg: string) => {
@@ -133,7 +134,7 @@ export default function App() {
         const [fb2024, fb2025, fb2026] = await Promise.all([
           fetchFallback(FALLBACK_2024_PATH),
           fetchFallback(FALLBACK_2025_PATH),
-          fetchFallback(FALLBACK_2026_PATH),
+          fetchFallback(LOCAL_2026_PATH).then((txt) => txt || fetchFallback(FALLBACK_2026_PATH)),
         ]);
 
         if (fb2024) parsedResults.push(parseSheetCsv(fb2024, 'Pico_Demanda_2024.csv', 2024));

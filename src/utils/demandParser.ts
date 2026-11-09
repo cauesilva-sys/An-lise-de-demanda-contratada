@@ -157,6 +157,38 @@ export function detectYearFromContent(text: string, sourceUrl = '', fallback = 2
 }
 
 /**
+/**
+ * Split CSV content into rows respecting newlines inside quoted fields
+ */
+export function splitCsvRows(text: string): string[] {
+  const rows: string[] = [];
+  let currentRow = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      currentRow += char;
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && text[i + 1] === '\n') {
+        i++;
+      }
+      if (currentRow.trim().length > 0) {
+        rows.push(currentRow);
+      }
+      currentRow = '';
+    } else {
+      currentRow += char;
+    }
+  }
+  if (currentRow.trim().length > 0) {
+    rows.push(currentRow);
+  }
+  return rows;
+}
+
+/**
  * Parse CSV Data supporting both:
  * 1. Sheet Matrix Format: Col A: Usina, Col B: Demanda Contratada, Col C..N: Meses (Janeiro a Dezembro)
  * 2. Log / Timeseries Format: Data, Usina, Potência Pico, Horário, Demanda Contratada, Status
@@ -166,7 +198,7 @@ export function parseSheetCsv(csvContent: string, sourceUrl = '', overrideYear?:
     return createEmptyResult(sourceUrl, overrideYear || 2025);
   }
 
-  const lines = csvContent.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  const lines = splitCsvRows(csvContent);
   if (lines.length < 2) {
     return createEmptyResult(sourceUrl, overrideYear || 2025);
   }
